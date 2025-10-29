@@ -83,6 +83,12 @@ export function changeUserStatus(e) {
     url: '/api/v1/user/status',
     method: 'put',
     data: data
+  }).then(response => {
+    if (response.code !== 200) {
+      // 抛出错误，让 Promise 变成 reject
+      return Promise.reject(new Error(response.msg || '操作失败'))
+    }
+    return response
   })
 }
 
