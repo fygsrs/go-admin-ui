@@ -60,7 +60,7 @@
           :data="sysapiList"
           border
           @selection-change="handleSelectionChange"
-          @sort-change="handleSortChang"
+          @sort-change="handleSortChange"
         >
           <el-table-column
             label="标题"
@@ -342,7 +342,7 @@ export default {
       this.isEdit = false
     },
     /** 排序回调函数 */
-    handleSortChang(column, prop, order) {
+    handleSortChange(column, prop, order) {
       prop = column.prop
       order = column.order
       if (this.order !== '' && this.order !== prop + 'Order') {

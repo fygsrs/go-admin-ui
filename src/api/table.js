@@ -12,13 +12,13 @@ export function setItems(response, k, v, extraFields = []) {
   if (response.data && response.data.list && response.data.list.length > 0) {
     response.data.list.forEach(e => {
       const item = {
-        key: e[k] != null ? e[k].toString() : '',
-        value: e[v] != null ? e[v].toString() : ''
+        key: e[k] != null ? e[k] : null,
+        value: e[v] != null ? e[v] : null
       }
 
       // 新增：遍历 extraFields，把额外字段也加进去
       extraFields.forEach(field => {
-        item[field] = e[field] != null ? e[field].toString() : ''
+        item[field] = e[field] != null ? e[field] : null
       })
 
       data.push(item)

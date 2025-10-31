@@ -63,7 +63,7 @@
           </el-col>
         </el-row>
 
-        <el-table v-loading="loading" :data="customerList" @selection-change="handleSelectionChange">
+        <el-table v-loading="loading" :data="customerList" @selection-change="handleSelectionChange" @sort-change="handleSortChange">
           <el-table-column type="selection" width="55" align="center" />
           <el-table-column
             label="客户名"
@@ -91,6 +91,17 @@
                 inactive-value="1"
                 @change="handleStatusChange(scope.row)"
               />
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="创建时间"
+            align="center"
+            prop="createdAt"
+            width="155px"
+            sortable="custom"
+          >
+            <template slot-scope="scope">
+              <span>{{ parseTime(scope.row.createdAt) }}</span>
             </template>
           </el-table-column>
           <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
@@ -372,6 +383,24 @@ export default {
       }).catch(function() {
         row.status = row.status === '2' ? '1' : '2'
       })
+    },
+    /** 排序回调函数 */
+    handleSortChange(column, prop, order) {
+      prop = column.prop
+      order = column.order
+      if (this.order !== '' && this.order !== prop + 'Order') {
+        this.queryParams[this.order] = undefined
+      }
+      if (order === 'descending') {
+        this.queryParams[prop + 'Order'] = 'desc'
+        this.order = prop + 'Order'
+      } else if (order === 'ascending') {
+        this.queryParams[prop + 'Order'] = 'asc'
+        this.order = prop + 'Order'
+      } else {
+        this.queryParams[prop + 'Order'] = undefined
+      }
+      this.getList()
     }
   }
 }

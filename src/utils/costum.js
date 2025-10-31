@@ -75,7 +75,7 @@ export function selectDictLabel(datas, value) {
 export function selectItemsLabel(datas, value) {
   var actions = []
   Object.keys(datas).map((key) => {
-    if (datas[key].key === ('' + value)) {
+    if (datas[key].key === (value)) {
       actions.push(datas[key].value)
       return false
     }

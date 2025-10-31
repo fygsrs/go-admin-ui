@@ -1,46 +1,39 @@
-
 <template>
   <BasicLayout>
     <template #wrapper>
       <el-card class="box-card">
         <el-form ref="queryForm" :model="queryParams" :inline="true" label-width="68px">
-          <el-form-item label="产品" prop="productId"><el-select
-            v-model="queryParams.productId"
-            placeholder="请选择"
-            clearable
-            filterable
-            size="small"
-          >
-            <el-option
-              v-for="dict in productIdOptions"
-              :key="dict.key"
-              :label="dict.value"
-              :value="dict.key"
-            />
-          </el-select>
+          <el-form-item label="产品" prop="productId">
+            <el-select
+              v-model="queryParams.productId"
+              placeholder="请选择"
+              clearable
+              filterable
+              size="small"
+            >
+              <el-option
+                v-for="dict in productIdOptions"
+                :key="dict.key"
+                :label="dict.value"
+                :value="dict.key"
+              />
+            </el-select>
           </el-form-item>
-          <el-form-item label="客户" prop="customerId"><el-select
-            v-model="queryParams.customerId"
-            placeholder="请选择"
-            clearable
-            filterable
-            size="small"
-          >
-            <el-option
-              v-for="dict in customerIdOptions"
-              :key="dict.key"
-              :label="dict.value"
-              :value="dict.key"
-            />
-          </el-select>
-          </el-form-item>
-          <el-form-item label="备注" prop="remark"><el-input
-            v-model="queryParams.remark"
-            placeholder="请输入备注"
-            clearable
-            size="small"
-            @keyup.enter.native="handleQuery"
-          />
+          <el-form-item label="客户" prop="customerId">
+            <el-select
+              v-model="queryParams.customerId"
+              placeholder="请选择"
+              clearable
+              filterable
+              size="small"
+            >
+              <el-option
+                v-for="dict in customerIdOptions"
+                :key="dict.key"
+                :label="dict.value"
+                :value="dict.key"
+              />
+            </el-select>
           </el-form-item>
 
           <el-form-item>
@@ -84,35 +77,31 @@
           </el-col>
         </el-row>
 
-        <el-table v-loading="loading" :data="orderList" @selection-change="handleSelectionChange">
-          <el-table-column type="selection" width="55" align="center" /><el-table-column label="产品" align="center" prop="productId" :formatter="productIdFormat" width="100">
+        <el-table v-loading="loading" :data="orderList" @selection-change="handleSelectionChange" @sort-change="handleSortChange">
+          <el-table-column type="selection" width="55" align="center" />
+          <el-table-column label="客户" align="center" prop="customerId" :formatter="customerIdFormat" width="120" />
+          <el-table-column label="本期总额(元)" align="center" prop="totalAmount" />
+          <el-table-column label="上期欠款(元)" align="center" prop="lastDebt" />
+          <el-table-column label="已付款(元)" align="center" prop="paidAmount" />
+          <el-table-column label="累计欠款(元)" align="center">
             <template slot-scope="scope">
-              {{ productIdFormat(scope.row) }}
+              {{ cumulativeDebtDisplay(scope.row) }}
             </template>
-          </el-table-column><el-table-column
-            label="数量(个)"
+          </el-table-column>
+          <el-table-column
+            label="创建时间"
             align="center"
-            prop="productNum"
-            :show-overflow-tooltip="true"
-          /><el-table-column label="客户" align="center" prop="customerId" :formatter="customerIdFormat" width="100">
+            prop="createdAt"
+            width="155px"
+            sortable="custom"
+          >
             <template slot-scope="scope">
-              {{ customerIdFormat(scope.row) }}
+              <span>{{ parseTime(scope.row.createdAt) }}</span>
             </template>
-          </el-table-column><el-table-column
-            label="总价"
-            align="center"
-            prop="price"
-            :show-overflow-tooltip="true"
-          /><el-table-column
-            label="备注"
-            align="center"
-            prop="remark"
-            :show-overflow-tooltip="true"
-          />
+          </el-table-column>
           <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
             <template slot-scope="scope">
               <el-button
-                slot="reference"
                 v-permisaction="['admin:order:edit']"
                 size="mini"
                 type="text"
@@ -127,7 +116,6 @@
                 @confirm="handleDelete(scope.row)"
               >
                 <el-button
-                  slot="reference"
                   v-permisaction="['admin:order:remove']"
                   size="mini"
                   type="text"
@@ -140,7 +128,7 @@
         </el-table>
 
         <pagination
-          v-show="total>0"
+          v-show="total > 0"
           :total="total"
           :page.sync="queryParams.pageIndex"
           :limit.sync="queryParams.pageSize"
@@ -148,64 +136,143 @@
         />
 
         <!-- 添加或修改对话框 -->
-        <el-dialog :title="title" :visible.sync="open" width="500px">
-          <el-form ref="form" :model="form" :rules="rules" label-width="80px">
+        <el-dialog :title="title" :visible.sync="open" width="1300px">
+          <el-form ref="form" :model="form" :rules="rules" label-width="150px">
+            <el-row :gutter="20">
+              <el-col :span="12">
+                <el-form-item label="客户" prop="customerId">
+                  <el-select
+                    v-model="form.customerId"
+                    placeholder="请选择"
+                    clearable
+                    filterable
+                  >
+                    <el-option
+                      v-for="dict in customerIdOptions"
+                      :key="dict.key"
+                      :label="dict.value"
+                      :value="dict.key"
+                    />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <!-- 明细表格 -->
+            <el-form-item label="订单明细" required>
+              <el-table :data="form.items" style="width: 100%">
+                <el-table-column label="品名/规格" width="220">
+                  <template slot-scope="scope">
+                    <el-select
+                      v-model="scope.row.productId"
+                      placeholder="请选择产品"
+                      filterable
+                      clearable
+                      @change="handleProductSelect(scope.$index, scope.row.productId)"
+                    >
+                      <el-option
+                        v-for="item in productIdOptions"
+                        :key="item.key"
+                        :label="item.value"
+                        :value="item.key"
+                      />
+                    </el-select>
+                  </template>
+                </el-table-column>
 
-            <el-form-item label="产品" prop="productId">
-              <el-select
-                v-model="form.productId"
-                placeholder="请选择"
-                clearable
-                filterable
-                @change="handleProductChange"
-              >
-                <el-option
-                  v-for="dict in productIdOptions"
-                  :key="dict.key"
-                  :label="dict.value"
-                  :value="dict.key"
-                />
-              </el-select>
+                <el-table-column label="单价(元/个)" width="200">
+                  <template slot-scope="scope">
+                    <el-input
+                      v-model="scope.row.singlePrice"
+                      placeholder="0.0000"
+                      @input="handleDecimalInputItem('singlePrice', scope.$index, 6, 4, $event)"
+                    />
+                  </template>
+                </el-table-column>
+
+                <el-table-column label="数量(个)" width="200">
+                  <template slot-scope="scope">
+                    <el-input-number
+                      v-model="scope.row.productNum"
+                      :min="1"
+                      :precision="0"
+                      controls-position="right"
+                      style="width: 100%"
+                      @change="updateItemAmount(scope.$index)"
+                    />
+                  </template>
+                </el-table-column>
+
+                <el-table-column label="金额(元)" width="200">
+                  <template slot-scope="scope">
+                    <el-input
+                      v-model="scope.row.price"
+                      placeholder="0.0000"
+                      @input="handlePriceInputItem('price', scope.$index, 10, 4, $event)"
+                    />
+                  </template>
+                </el-table-column>
+
+                <el-table-column label="备注" width="200">
+                  <template slot-scope="scope">
+                    <el-input
+                      v-model="scope.row.remark"
+                      placeholder="备注"
+                      maxlength="50"
+                      show-word-limit
+                    />
+                  </template>
+                </el-table-column>
+
+                <el-table-column label="操作" width="80">
+                  <template slot-scope="scope">
+                    <el-button
+                      type="danger"
+                      icon="el-icon-delete"
+                      size="mini"
+                      :disabled="form.items.length === 1"
+                      @click="removeItem(scope.$index)"
+                    />
+                  </template>
+                </el-table-column>
+              </el-table>
+
+              <el-row>
+                <el-col :span="24" style="text-align: right; margin-top: 10px;">
+                  <el-button type="primary" size="mini" @click="addItem">
+                    + 添加产品
+                  </el-button>
+                </el-col>
+              </el-row>
             </el-form-item>
 
-            <el-form-item label="产品单价" prop="singlePrice">
+            <el-form-item label="本期交易总额" prop="totalAmount">
               <el-input
-                v-model="form.singlePrice"
-                placeholder="产品单价"
+                v-model="form.totalAmount"
+                placeholder="自动计算或手动输入"
+                style="width: 400px"
+                @input="handleDebtInput('totalAmount', $event)"
               />
             </el-form-item>
 
-            <el-form-item label="客户" prop="customerId">
-              <el-select
-                v-model="form.customerId"
-                placeholder="请选择"
-              >
-                <el-option
-                  v-for="dict in customerIdOptions"
-                  :key="dict.key"
-                  :label="dict.value"
-                  :value="dict.key"
-                />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="数量(个)" prop="productNum">
+            <el-form-item label="上期欠款金额" prop="lastDebt">
               <el-input
-                v-model.number="form.productNum"
-                placeholder="数量(个)"
-                @input="handleIntegerInput"
+                v-model="form.lastDebt"
+                placeholder="0.00"
+                style="width: 400px"
+                @input="handleDebtInput('lastDebt', $event)"
               />
             </el-form-item>
-            <el-form-item label="总价" prop="price">
+
+            <el-form-item label="已付款金额" prop="paidAmount">
               <el-input
-                v-model="form.price"
-                placeholder="总价"
+                v-model="form.paidAmount"
+                placeholder="0.00"
+                style="width: 400px"
+                @input="handleDebtInput('paidAmount', $event)"
               />
             </el-form-item>
-            <el-form-item label="备注" prop="remark">
-              <el-input
-                v-model="form.remark"
-                placeholder="备注"
-              />
+            <el-form-item label="开单累计欠款(元)">
+              <el-input :value="cumulativeDebt" readonly style="width: 400px" />
             </el-form-item>
           </el-form>
           <div slot="footer" class="dialog-footer">
@@ -220,104 +287,103 @@
 
 <script>
 import { addOrder, delOrder, getOrder, listOrder, updateOrder } from '@/api/admin/order'
-
 import { listProduct } from '@/api/admin/product'
 import { listCustomer } from '@/api/admin/customer'
+import Decimal from 'decimal.js'
+
 export default {
   name: 'Order',
-  components: {
-  },
+  components: {},
   data() {
     return {
-      // 遮罩层
       loading: true,
-      // 选中数组
       ids: [],
-      // 非单个禁用
       single: true,
-      // 非多个禁用
       multiple: true,
-      // 总条数
       total: 0,
-      // 弹出层标题
       title: '',
-      // 是否显示弹出层
       open: false,
       isEdit: false,
-      // 类型数据字典
-      typeOptions: [],
       orderList: [],
-
-      // 关系表类型
       productIdOptions: [],
       customerIdOptions: [],
-
-      // 查询参数
       queryParams: {
         pageIndex: 1,
         pageSize: 10,
         productId: undefined,
-        customerId: undefined,
-        remark: undefined
-
+        customerId: undefined
       },
-      // 表单参数
       form: {
-      },
-      // 表单校验
-      rules: { productId: [{ required: true, message: '产品id不能为空', trigger: 'blur' }],
-        customerId: [{ required: true, message: '客户id不能为空', trigger: 'blur' }],
-        productNum: [
-          { required: true, message: '请输入数量', trigger: 'blur' },
+        id: undefined,
+        customerId: undefined,
+        lastDebt: '',
+        debt: '',
+        paidAmount: '',
+        totalAmount: '',
+        items: [
           {
-            pattern: /^[1-9]\d*$/,
-            message: '数量必须为正整数',
-            trigger: 'blur'
+            productId: undefined,
+            singlePrice: '',
+            productNum: 1,
+            price: '',
+            remark: ''
           }
         ]
+      },
+      rules: {
+        customerId: [{ required: true, message: '客户不能为空', trigger: 'blur' }],
+        lastDebt: [{ required: true, message: '上期欠款不能为空', trigger: 'blur' }],
+        paidAmount: [{ required: true, message: '已付款不能为空', trigger: 'blur' }],
+        totalAmount: [{ required: true, message: '本期交易总额不能为空', trigger: 'blur' }]
       }
     }
   },
+  computed: {
+    cumulativeDebt() {
+      const last = this.form.lastDebt ? new Decimal(this.form.lastDebt) : new Decimal(0)
+      const total = this.form.totalAmount ? new Decimal(this.form.totalAmount) : new Decimal(0)
+      const paid = this.form.paidAmount ? new Decimal(this.form.paidAmount) : new Decimal(0)
+      return last.plus(total).minus(paid).toDecimalPlaces(2, Decimal.ROUND_DOWN).toString()
+    }
+  },
   created() {
+    console.log('✅ 正在加载我写的 index.vue！')
     this.getList()
     this.getProductItems()
     this.getCustomerItems()
   },
   methods: {
-    /** 查询参数列表 */
     getList() {
       this.loading = true
       listOrder(this.addDateRange(this.queryParams, this.dateRange)).then(response => {
         this.orderList = response.data.list
         this.total = response.data.count
         this.loading = false
-      }
-      )
+      })
     },
-    // 取消按钮
     cancel() {
       this.open = false
       this.reset()
     },
-    // 表单重置
     reset() {
       this.form = {
-
         id: undefined,
-        productId: undefined,
-        productNum: undefined,
         customerId: undefined,
-        singlePrice: undefined,
-        price: undefined,
-        remark: undefined
+        lastDebt: '',
+        paidAmount: '',
+        totalAmount: '',
+        remark: '',
+        items: [
+          {
+            productId: undefined,
+            singlePrice: '',
+            productNum: 1,
+            price: '',
+            remark: ''
+          }
+        ]
       }
       this.resetForm('form')
-    },
-    getImgList: function() {
-      this.form[this.fileIndex] = this.$refs['fileChoose'].resultList[0].fullUrl
-    },
-    fileClose: function() {
-      this.fileOpen = false
     },
     productIdFormat(row) {
       return this.selectItemsLabel(this.productIdOptions, row.productId)
@@ -325,7 +391,12 @@ export default {
     customerIdFormat(row) {
       return this.selectItemsLabel(this.customerIdOptions, row.customerId)
     },
-    // 关系
+    cumulativeDebtDisplay(row) {
+      const last = row.lastDebt || 0
+      const total = row.totalAmount || 0
+      const paid = row.paidAmount || 0
+      return new Decimal(last).plus(total).minus(paid).toDecimalPlaces(2, Decimal.ROUND_DOWN).toString()
+    },
     getProductItems() {
       this.getItems(listProduct, undefined).then(res => {
         this.productIdOptions = this.setItems(res, 'id', 'productName', ['price'])
@@ -336,108 +407,220 @@ export default {
         this.customerIdOptions = this.setItems(res, 'customerId', 'customerName')
       })
     },
-    // 文件
-    /** 搜索按钮操作 */
     handleQuery() {
       this.queryParams.pageIndex = 1
       this.getList()
     },
-    /** 重置按钮操作 */
     resetQuery() {
       this.dateRange = []
       this.resetForm('queryForm')
       this.handleQuery()
     },
-    /** 新增按钮操作 */
     handleAdd() {
       this.reset()
       this.open = true
-      this.title = '添加订单管理'
+      this.title = '添加订单'
       this.isEdit = false
     },
-    // 多选框选中数据
     handleSelectionChange(selection) {
       this.ids = selection.map(item => item.id)
       this.single = selection.length !== 1
       this.multiple = !selection.length
     },
-    /** 修改按钮操作 */
+    handleSortChange(column) {
+      const { prop, order } = column
+      if (this.order && this.order !== prop + 'Order') {
+        this.queryParams[this.order] = undefined
+      }
+      if (order === 'descending') {
+        this.queryParams[prop + 'Order'] = 'desc'
+        this.order = prop + 'Order'
+      } else if (order === 'ascending') {
+        this.queryParams[prop + 'Order'] = 'asc'
+        this.order = prop + 'Order'
+      } else {
+        this.queryParams[prop + 'Order'] = undefined
+      }
+      this.getList()
+    },
     handleUpdate(row) {
       this.reset()
-      const id =
-                row.id || this.ids
+      const id = row.id || this.ids[0]
       getOrder(id).then(response => {
-        this.form = response.data
+        const data = response.data
+        this.form = {
+          id: data.id,
+          customerId: data.customerId,
+          lastDebt: data.lastDebt,
+          paidAmount: data.paidAmount,
+          totalAmount: data.totalAmount,
+          items: data.items.map(item => ({
+            productId: item.productId,
+            singlePrice: item.singlePrice,
+            productNum: item.productNum,
+            price: item.price,
+            remark: item.remark
+          }))
+        }
         this.open = true
-        this.title = '修改订单管理'
+        this.title = '修改订单'
         this.isEdit = true
       })
     },
-    /** 提交按钮 */
-    submitForm: function() {
+    submitForm() {
       this.$refs['form'].validate(valid => {
-        if (valid) {
-          if (this.form.id !== undefined) {
-            updateOrder(this.form).then(response => {
-              if (response.code === 200) {
-                this.msgSuccess(response.msg)
-                this.open = false
-                this.getList()
-              } else {
-                this.msgError(response.msg)
-              }
-            })
-          } else {
-            addOrder(this.form).then(response => {
-              if (response.code === 200) {
-                this.msgSuccess(response.msg)
-                this.open = false
-                this.getList()
-              } else {
-                this.msgError(response.msg)
-              }
-            })
-          }
+        if (!valid) return
+
+        const hasInvalidItem = this.form.items.some(
+          item => !item.productId || !item.singlePrice || !item.productNum || !item.price
+        )
+        if (hasInvalidItem) {
+          this.$message.warning('请填写完整的订单明细')
+          return
         }
+        this.form.debt = this.cumulativeDebt
+        const api = this.form.id ? updateOrder : addOrder
+        api(this.form).then(response => {
+          if (response.code === 200) {
+            this.msgSuccess(response.msg)
+            this.open = false
+            this.getList()
+          } else {
+            this.msgError(response.msg)
+          }
+        })
       })
     },
-    /** 删除按钮操作 */
     handleDelete(row) {
-      var Ids = (row.id && [row.id]) || this.ids
-
-      this.$confirm('是否确认删除编号为"' + Ids + '"的数据项?', '警告', {
+      const ids = (row.id && [row.id]) || this.ids
+      this.$confirm(`是否确认删除编号为"${ids}"的数据项?`, '警告', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
-      }).then(function() {
-        return delOrder({ 'ids': Ids })
-      }).then((response) => {
-        if (response.code === 200) {
-          this.msgSuccess(response.msg)
-          this.open = false
-          this.getList()
-        } else {
-          this.msgError(response.msg)
+      })
+        .then(() => delOrder({ ids }))
+        .then(response => {
+          if (response.code === 200) {
+            this.msgSuccess(response.msg)
+            this.getList()
+          } else {
+            this.msgError(response.msg)
+          }
+        })
+        .catch(() => {})
+    },
+    // 通用金额输入限制（主表）
+    handleDebtInput(field, value) {
+      if (value == null) {
+        this.form[field] = ''
+        return
+      }
+      let input = value.replace(/[^\d.]/g, '')
+      const dots = input.split('.').length - 1
+      if (dots > 1) {
+        const i = input.indexOf('.')
+        input = input.slice(0, i + 1) + input.slice(i + 1).replace(/\./g, '')
+      }
+      const [int, dec] = input.split('.')
+      let res = (int || '').slice(0, 12)
+      if (input.includes('.')) {
+        res += '.' + (dec || '').slice(0, 2)
+      }
+      this.form[field] = res
+    },
+    // 明细行单价输入
+    handleDecimalInputItem(field, index, maxInt, maxDec, value) {
+      if (value == null) {
+        this.form.items[index][field] = ''
+        return
+      }
+      let input = value.replace(/[^\d.]/g, '')
+      const dots = input.split('.').length - 1
+      if (dots > 1) {
+        const i = input.indexOf('.')
+        input = input.slice(0, i + 1) + input.slice(i + 1).replace(/\./g, '')
+      }
+      const [int, dec] = input.split('.')
+      let res = (int || '').slice(0, maxInt)
+      if (input.includes('.')) {
+        res += '.' + (dec || '').slice(0, maxDec)
+      }
+      this.form.items[index][field] = res
+      this.updateItemAmount(index)
+    },
+    // 明细行金额输入
+    handlePriceInputItem(field, index, maxInt, maxDec, value) {
+      if (value == null) {
+        this.form.items[index][field] = ''
+        return
+      }
+      let input = value.replace(/[^\d.]/g, '')
+      const dots = input.split('.').length - 1
+      if (dots > 1) {
+        const i = input.indexOf('.')
+        input = input.slice(0, i + 1) + input.slice(i + 1).replace(/\./g, '')
+      }
+      const [int, dec] = input.split('.')
+      let res = (int || '').slice(0, maxInt)
+      if (input.includes('.')) {
+        res += '.' + (dec || '').slice(0, maxDec)
+      }
+      this.form.items[index][field] = res
+      this.recalcTotalAmount()
+    },
+    handleProductSelect(index, productId) {
+      const item = this.form.items[index]
+      const product = this.productIdOptions.find(p => p.key === productId)
+      if (product) {
+        item.singlePrice = product.price.toString()
+        this.updateItemAmount(index)
+      }
+    },
+    updateItemAmount(index) {
+      const item = this.form.items[index]
+      if (item.singlePrice && item.productNum) {
+        try {
+          const p = new Decimal(item.singlePrice)
+          const n = new Decimal(item.productNum)
+          item.price = p.mul(n).toDecimalPlaces(4, Decimal.ROUND_DOWN).toString()
+        } catch (e) {
+          item.price = ''
         }
-      }).catch(function() {
+      } else {
+        item.price = ''
+      }
+      this.recalcTotalAmount()
+    },
+    recalcTotalAmount() {
+      let sum = new Decimal(0)
+      for (const item of this.form.items) {
+        if (item.price) {
+          sum = sum.plus(new Decimal(item.price))
+        }
+      }
+      this.form.totalAmount = sum.toDecimalPlaces(4, Decimal.ROUND_DOWN).toString()
+    },
+    addItem() {
+      this.form.items.push({
+        productId: undefined,
+        singlePrice: '',
+        productNum: 1,
+        price: '',
+        remark: ''
       })
     },
-    handleIntegerInput(value) {
-      // 只保留数字（0-9），移除小数点、负号、字母等
-      this.form.productNum = value.replace(/[^\d]/g, '')
-    },
-    handleProductChange(productId) {
-      // 根据 productId 找到对应的选项
-      const selected = this.productIdOptions.find(item => item.key === productId)
-
-      if (selected) {
-        // 自动填充价格（保留小数或格式化按需处理）
-        this.form.singlePrice = selected.price
-      } else {
-        // 如果没选中（比如清空），清空价格
-        this.form.singlePrice = ''
+    removeItem(index) {
+      if (this.form.items.length > 1) {
+        this.form.items.splice(index, 1)
+        this.recalcTotalAmount()
       }
     }
   }
 }
 </script>
+
+<style scoped>
+.delete-popconfirm ::v-deep .el-popconfirm__action {
+  text-align: center;
+}
+</style>

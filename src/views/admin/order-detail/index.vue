@@ -1,26 +1,9 @@
+
 <template>
   <BasicLayout>
     <template #wrapper>
       <el-card class="box-card">
         <el-form ref="queryForm" :model="queryParams" :inline="true" label-width="68px">
-          <el-form-item label="品名/规格" prop="productName">
-            <el-input
-              v-model="queryParams.productName"
-              placeholder="请输入品名/规格"
-              clearable
-              size="small"
-              @keyup.enter.native="handleQuery"
-            />
-          </el-form-item>
-          <el-form-item label="备注" prop="remark">
-            <el-input
-              v-model="queryParams.remark"
-              placeholder="请输入备注"
-              clearable
-              size="small"
-              @keyup.enter.native="handleQuery"
-            />
-          </el-form-item>
 
           <el-form-item>
             <el-button type="primary" icon="el-icon-search" size="mini" @click="handleQuery">搜索</el-button>
@@ -31,7 +14,7 @@
         <el-row :gutter="10" class="mb8">
           <el-col :span="1.5">
             <el-button
-              v-permisaction="['admin:product:add']"
+              v-permisaction="['admin:orderDetail:add']"
               type="primary"
               icon="el-icon-plus"
               size="mini"
@@ -41,7 +24,7 @@
           </el-col>
           <el-col :span="1.5">
             <el-button
-              v-permisaction="['admin:product:edit']"
+              v-permisaction="['admin:orderDetail:edit']"
               type="success"
               icon="el-icon-edit"
               size="mini"
@@ -52,7 +35,7 @@
           </el-col>
           <el-col :span="1.5">
             <el-button
-              v-permisaction="['admin:product:remove']"
+              v-permisaction="['admin:orderDetail:remove']"
               type="danger"
               icon="el-icon-delete"
               size="mini"
@@ -63,48 +46,13 @@
           </el-col>
         </el-row>
 
-        <el-table v-loading="loading" :data="productList" @selection-change="handleSelectionChange" @sort-change="handleSortChange">
+        <el-table v-loading="loading" :data="orderDetailList" @selection-change="handleSelectionChange">
           <el-table-column type="selection" width="55" align="center" />
-          <el-table-column
-            label="编号"
-            align="center"
-            prop="id"
-            :show-overflow-tooltip="true"
-          />
-          <el-table-column
-            label="品名/规格"
-            align="center"
-            prop="productName"
-            :show-overflow-tooltip="true"
-          />
-          <el-table-column
-            label="单价(元/个)"
-            align="center"
-            prop="price"
-            :show-overflow-tooltip="true"
-          />
-          <el-table-column
-            label="备注"
-            align="center"
-            prop="remark"
-            :show-overflow-tooltip="true"
-          />
-          <el-table-column
-            label="创建时间"
-            align="center"
-            prop="createdAt"
-            width="155px"
-            sortable="custom"
-          >
-            <template slot-scope="scope">
-              <span>{{ parseTime(scope.row.createdAt) }}</span>
-            </template>
-          </el-table-column>
           <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
             <template slot-scope="scope">
               <el-button
                 slot="reference"
-                v-permisaction="['admin:product:edit']"
+                v-permisaction="['admin:orderDetail:edit']"
                 size="mini"
                 type="text"
                 icon="el-icon-edit"
@@ -119,7 +67,7 @@
               >
                 <el-button
                   slot="reference"
-                  v-permisaction="['admin:product:remove']"
+                  v-permisaction="['admin:orderDetail:remove']"
                   size="mini"
                   type="text"
                   icon="el-icon-delete"
@@ -142,16 +90,40 @@
         <el-dialog :title="title" :visible.sync="open" width="500px">
           <el-form ref="form" :model="form" :rules="rules" label-width="80px">
 
-            <el-form-item label="品名/规格" prop="productName">
+            <el-form-item label="订单id" prop="orderId">
               <el-input
-                v-model="form.productName"
-                placeholder="品名/规格"
+                v-model.number="form.orderId"
+                placeholder="订单id"
               />
             </el-form-item>
-            <el-form-item label="单价(元/个)" prop="price">
+            <el-form-item label="产品id" prop="productId">
+              <el-input
+                v-model.number="form.productId"
+                placeholder="产品id"
+              />
+            </el-form-item>
+            <el-form-item label="数量(个)" prop="productNum">
+              <el-input
+                v-model.number="form.productNum"
+                placeholder="数量(个)"
+              />
+            </el-form-item>
+            <el-form-item label="客户id" prop="customerId">
+              <el-input
+                v-model.number="form.customerId"
+                placeholder="客户id"
+              />
+            </el-form-item>
+            <el-form-item label="开单时的产品单价" prop="singlePrice">
+              <el-input
+                v-model="form.singlePrice"
+                placeholder="开单时的产品单价"
+              />
+            </el-form-item>
+            <el-form-item label="总价" prop="price">
               <el-input
                 v-model="form.price"
-                placeholder="单价(元/个)"
+                placeholder="总价"
               />
             </el-form-item>
             <el-form-item label="备注" prop="remark">
@@ -172,11 +144,15 @@
 </template>
 
 <script>
-import { addProduct, delProduct, getProduct, listProduct, updateProduct } from '@/api/admin/product'
+import { addOrderDetail, delOrderDetail, getOrderDetail, listOrderDetail, updateOrderDetail } from '@/api/admin/order-detail'
 
+import { listOrder } from '@/api/admin/order'
+import { listProduct } from '@/api/admin/product'
+import { listCustomer } from '@/api/admin/customer'
 export default {
-  name: 'Product',
-  components: {},
+  name: 'OrderDetail',
+  components: {
+  },
   data() {
     return {
       // 遮罩层
@@ -196,36 +172,38 @@ export default {
       isEdit: false,
       // 类型数据字典
       typeOptions: [],
-      productList: [],
+      orderDetailList: [],
 
       // 关系表类型
+      orderIdOptions: [],
+      productIdOptions: [],
+      customerIdOptions: [],
 
       // 查询参数
       queryParams: {
         pageIndex: 1,
-        pageSize: 10,
-        productName: undefined,
-        remark: undefined
+        pageSize: 10
 
       },
       // 表单参数
-      form: {},
+      form: {
+      },
       // 表单校验
-      rules: {
-        productName: [{ required: true, message: '品名/规格不能为空', trigger: 'blur' }],
-        price: [{ required: true, message: '价格不能为空', trigger: 'blur' }]
-      }
+      rules: {}
     }
   },
   created() {
     this.getList()
+    this.getOrderItems()
+    this.getProductItems()
+    this.getCustomerItems()
   },
   methods: {
     /** 查询参数列表 */
     getList() {
       this.loading = true
-      listProduct(this.addDateRange(this.queryParams, this.dateRange)).then(response => {
-        this.productList = response.data.list
+      listOrderDetail(this.addDateRange(this.queryParams, this.dateRange)).then(response => {
+        this.orderDetailList = response.data.list
         this.total = response.data.count
         this.loading = false
       }
@@ -241,7 +219,11 @@ export default {
       this.form = {
 
         id: undefined,
-        productName: undefined,
+        orderId: undefined,
+        productId: undefined,
+        productNum: undefined,
+        customerId: undefined,
+        singlePrice: undefined,
         price: undefined,
         remark: undefined
       }
@@ -253,7 +235,31 @@ export default {
     fileClose: function() {
       this.fileOpen = false
     },
+    orderIdFormat(row) {
+      return this.selectItemsLabel(this.orderIdOptions, row.orderId)
+    },
+    productIdFormat(row) {
+      return this.selectItemsLabel(this.productIdOptions, row.productId)
+    },
+    customerIdFormat(row) {
+      return this.selectItemsLabel(this.customerIdOptions, row.customerId)
+    },
     // 关系
+    getOrderItems() {
+      this.getItems(listOrder, undefined).then(res => {
+        this.orderIdOptions = this.setItems(res, 'id', 'id')
+      })
+    },
+    getProductItems() {
+      this.getItems(listProduct, undefined).then(res => {
+        this.productIdOptions = this.setItems(res, 'id', 'productName')
+      })
+    },
+    getCustomerItems() {
+      this.getItems(listCustomer, undefined).then(res => {
+        this.customerIdOptions = this.setItems(res, 'customerId', 'customerName')
+      })
+    },
     // 文件
     /** 搜索按钮操作 */
     handleQuery() {
@@ -270,7 +276,7 @@ export default {
     handleAdd() {
       this.reset()
       this.open = true
-      this.title = '添加产品'
+      this.title = '添加OrderDetail'
       this.isEdit = false
     },
     // 多选框选中数据
@@ -283,11 +289,11 @@ export default {
     handleUpdate(row) {
       this.reset()
       const id =
-        row.id || this.ids
-      getProduct(id).then(response => {
+                row.id || this.ids
+      getOrderDetail(id).then(response => {
         this.form = response.data
         this.open = true
-        this.title = '修改产品'
+        this.title = '修改OrderDetail'
         this.isEdit = true
       })
     },
@@ -296,7 +302,7 @@ export default {
       this.$refs['form'].validate(valid => {
         if (valid) {
           if (this.form.id !== undefined) {
-            updateProduct(this.form).then(response => {
+            updateOrderDetail(this.form).then(response => {
               if (response.code === 200) {
                 this.msgSuccess(response.msg)
                 this.open = false
@@ -306,7 +312,7 @@ export default {
               }
             })
           } else {
-            addProduct(this.form).then(response => {
+            addOrderDetail(this.form).then(response => {
               if (response.code === 200) {
                 this.msgSuccess(response.msg)
                 this.open = false
@@ -328,7 +334,7 @@ export default {
         cancelButtonText: '取消',
         type: 'warning'
       }).then(function() {
-        return delProduct({ 'ids': Ids })
+        return delOrderDetail({ 'ids': Ids })
       }).then((response) => {
         if (response.code === 200) {
           this.msgSuccess(response.msg)
@@ -339,24 +345,6 @@ export default {
         }
       }).catch(function() {
       })
-    },
-    /** 排序回调函数 */
-    handleSortChange(column, prop, order) {
-      prop = column.prop
-      order = column.order
-      if (this.order !== '' && this.order !== prop + 'Order') {
-        this.queryParams[this.order] = undefined
-      }
-      if (order === 'descending') {
-        this.queryParams[prop + 'Order'] = 'desc'
-        this.order = prop + 'Order'
-      } else if (order === 'ascending') {
-        this.queryParams[prop + 'Order'] = 'asc'
-        this.order = prop + 'Order'
-      } else {
-        this.queryParams[prop + 'Order'] = undefined
-      }
-      this.getList()
     }
   }
 }

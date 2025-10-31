@@ -60,6 +60,7 @@ module.exports = {
     }
   },
   chainWebpack(config) {
+    console.log('当前 NODE_ENV:', process.env.NODE_ENV) // 👈 打印环境变量
     // it can improve the speed of the first screen, it is recommended to turn on preload
     // config.plugins.delete('preload')
 
