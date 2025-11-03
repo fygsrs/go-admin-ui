@@ -150,8 +150,10 @@
             </el-form-item>
             <el-form-item label="单价(元/个)" prop="price">
               <el-input
-                v-model="form.price"
+                :value="displayPrice('price')"
                 placeholder="单价(元/个)"
+                @input="handlePriceInputItem('price',10,4,$event)"
+                @blur="formatFieldOnBlur('price', 4)"
               />
             </el-form-item>
             <el-form-item label="备注" prop="remark">
@@ -357,6 +359,51 @@ export default {
         this.queryParams[prop + 'Order'] = undefined
       }
       this.getList()
+    },
+    handlePriceInputItem(field, maxInt, maxDec, value) {
+      if (value == null) {
+        this.form[field] = ''
+        return
+      }
+      let input = value.replace(/[^\d.]/g, '')
+      const dots = input.split('.').length - 1
+      if (dots > 1) {
+        const i = input.indexOf('.')
+        input = input.slice(0, i + 1) + input.slice(i + 1).replace(/\./g, '')
+      }
+      const [int, dec] = input.split('.')
+      let res = (int || '').slice(0, maxInt)
+      if (input.includes('.')) {
+        res += '.' + (dec || '').slice(0, maxDec)
+      }
+      this.form[field] = res
+    },
+    // 展示日志格式化
+    formatFieldOnBlur(field, precise, index) {
+      let val
+      if (index !== undefined) {
+        val = this.form.items[index][field]
+      } else {
+        val = this.form[field]
+      }
+      if (val && val !== '') {
+        const num = parseFloat(val)
+        if (!isNaN(num)) {
+          if (index !== undefined) {
+            // 失焦时把 model 更新为格式化后的字符串（如 '12.3000'）
+            this.form.items[index][field] = num.toFixed(precise)
+          } else {
+            this.form[field] = num.toFixed(precise)
+          }
+        }
+      }
+    },
+    displayPrice(field, index) {
+      if (index !== undefined) {
+        return this.form.items[index][field]
+      } else {
+        return this.form[field]
+      }
     }
   }
 }

@@ -17,6 +17,14 @@ export function getOrder(id) {
   })
 }
 
+// 查询Order详细
+export function getLastRecord(customerId) {
+  return request({
+    url: '/api/v1/order/getLastRecord/' + customerId,
+    method: 'get'
+  })
+}
+
 // 新增Order
 export function addOrder(data) {
   return request({

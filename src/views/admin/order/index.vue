@@ -77,17 +77,18 @@
           </el-col>
         </el-row>
 
-        <el-table v-loading="loading" :data="orderList" @selection-change="handleSelectionChange" @sort-change="handleSortChange">
+        <el-table
+          v-loading="loading"
+          :data="orderList"
+          @selection-change="handleSelectionChange"
+          @sort-change="handleSortChange"
+        >
           <el-table-column type="selection" width="55" align="center" />
           <el-table-column label="客户" align="center" prop="customerId" :formatter="customerIdFormat" width="120" />
           <el-table-column label="本期总额(元)" align="center" prop="totalAmount" />
           <el-table-column label="上期欠款(元)" align="center" prop="lastDebt" />
           <el-table-column label="已付款(元)" align="center" prop="paidAmount" />
-          <el-table-column label="累计欠款(元)" align="center">
-            <template slot-scope="scope">
-              {{ cumulativeDebtDisplay(scope.row) }}
-            </template>
-          </el-table-column>
+          <el-table-column label="累计欠款(元)" align="center" prop="debt" />
           <el-table-column
             label="创建时间"
             align="center"
@@ -146,6 +147,7 @@
                     placeholder="请选择"
                     clearable
                     filterable
+                    @change="handleCustomerSelect(form.customerId)"
                   >
                     <el-option
                       v-for="dict in customerIdOptions"
@@ -182,9 +184,10 @@
                 <el-table-column label="单价(元/个)" width="200">
                   <template slot-scope="scope">
                     <el-input
-                      v-model="scope.row.singlePrice"
                       placeholder="0.0000"
+                      :value="displayPrice('singlePrice',scope.$index)"
                       @input="handleDecimalInputItem('singlePrice', scope.$index, 6, 4, $event)"
+                      @blur="formatFieldOnBlur('singlePrice', 4,scope.$index)"
                     />
                   </template>
                 </el-table-column>
@@ -205,9 +208,10 @@
                 <el-table-column label="金额(元)" width="200">
                   <template slot-scope="scope">
                     <el-input
-                      v-model="scope.row.price"
                       placeholder="0.0000"
+                      :value="displayPrice('price',scope.$index)"
                       @input="handlePriceInputItem('price', scope.$index, 10, 4, $event)"
+                      @blur="formatFieldOnBlur('price', 4,scope.$index)"
                     />
                   </template>
                 </el-table-column>
@@ -247,28 +251,31 @@
 
             <el-form-item label="本期交易总额" prop="totalAmount">
               <el-input
-                v-model="form.totalAmount"
                 placeholder="自动计算或手动输入"
                 style="width: 400px"
+                :value="displayPrice('totalAmount')"
                 @input="handleDebtInput('totalAmount', $event)"
+                @blur="formatFieldOnBlur('totalAmount', 2)"
               />
             </el-form-item>
 
             <el-form-item label="上期欠款金额" prop="lastDebt">
               <el-input
-                v-model="form.lastDebt"
                 placeholder="0.00"
                 style="width: 400px"
+                :value="displayPrice('lastDebt')"
                 @input="handleDebtInput('lastDebt', $event)"
+                @blur="formatFieldOnBlur('lastDebt', 2)"
               />
             </el-form-item>
 
             <el-form-item label="已付款金额" prop="paidAmount">
               <el-input
-                v-model="form.paidAmount"
                 placeholder="0.00"
                 style="width: 400px"
+                :value="displayPrice('paidAmount')"
                 @input="handleDebtInput('paidAmount', $event)"
+                @blur="formatFieldOnBlur('paidAmount', 2)"
               />
             </el-form-item>
             <el-form-item label="开单累计欠款(元)">
@@ -286,7 +293,7 @@
 </template>
 
 <script>
-import { addOrder, delOrder, getOrder, listOrder, updateOrder } from '@/api/admin/order'
+import { addOrder, delOrder, getLastRecord, getOrder, listOrder, updateOrder } from '@/api/admin/order'
 import { listProduct } from '@/api/admin/product'
 import { listCustomer } from '@/api/admin/customer'
 import Decimal from 'decimal.js'
@@ -343,7 +350,7 @@ export default {
       const last = this.form.lastDebt ? new Decimal(this.form.lastDebt) : new Decimal(0)
       const total = this.form.totalAmount ? new Decimal(this.form.totalAmount) : new Decimal(0)
       const paid = this.form.paidAmount ? new Decimal(this.form.paidAmount) : new Decimal(0)
-      return last.plus(total).minus(paid).toDecimalPlaces(2, Decimal.ROUND_DOWN).toString()
+      return last.plus(total).minus(paid).toDecimalPlaces(2, Decimal.ROUND_DOWN).toFixed(2).toString()
     }
   },
   created() {
@@ -390,12 +397,6 @@ export default {
     },
     customerIdFormat(row) {
       return this.selectItemsLabel(this.customerIdOptions, row.customerId)
-    },
-    cumulativeDebtDisplay(row) {
-      const last = row.lastDebt || 0
-      const total = row.totalAmount || 0
-      const paid = row.paidAmount || 0
-      return new Decimal(last).plus(total).minus(paid).toDecimalPlaces(2, Decimal.ROUND_DOWN).toString()
     },
     getProductItems() {
       this.getItems(listProduct, undefined).then(res => {
@@ -454,7 +455,7 @@ export default {
           lastDebt: data.lastDebt,
           paidAmount: data.paidAmount,
           totalAmount: data.totalAmount,
-          items: data.items.map(item => ({
+          items: (data.items || []).map(item => ({
             productId: item.productId,
             singlePrice: item.singlePrice,
             productNum: item.productNum,
@@ -507,7 +508,8 @@ export default {
             this.msgError(response.msg)
           }
         })
-        .catch(() => {})
+        .catch(() => {
+        })
     },
     // 通用金额输入限制（主表）
     handleDebtInput(field, value) {
@@ -576,13 +578,24 @@ export default {
         this.updateItemAmount(index)
       }
     },
+    handleCustomerSelect(customerId) {
+      const customer = this.customerIdOptions.find(c => c.key === customerId)
+      if (customer) {
+        getLastRecord(customerId).then(response => {
+          const data = response.data
+          if (data && data.debt) {
+            this.form.lastDebt = data.debt
+          }
+        })
+      }
+    },
     updateItemAmount(index) {
       const item = this.form.items[index]
       if (item.singlePrice && item.productNum) {
         try {
           const p = new Decimal(item.singlePrice)
           const n = new Decimal(item.productNum)
-          item.price = p.mul(n).toDecimalPlaces(4, Decimal.ROUND_DOWN).toString()
+          item.price = p.mul(n).toDecimalPlaces(4, Decimal.ROUND_DOWN).toFixed(4).toString()
         } catch (e) {
           item.price = ''
         }
@@ -598,7 +611,7 @@ export default {
           sum = sum.plus(new Decimal(item.price))
         }
       }
-      this.form.totalAmount = sum.toDecimalPlaces(4, Decimal.ROUND_DOWN).toString()
+      this.form.totalAmount = sum.toDecimalPlaces(4, Decimal.ROUND_DOWN).toFixed(2).toString()
     },
     addItem() {
       this.form.items.push({
@@ -613,6 +626,32 @@ export default {
       if (this.form.items.length > 1) {
         this.form.items.splice(index, 1)
         this.recalcTotalAmount()
+      }
+    },
+    formatFieldOnBlur(field, precise, index) {
+      let val
+      if (index !== undefined) {
+        val = this.form.items[index][field]
+      } else {
+        val = this.form[field]
+      }
+      if (val && val !== '') {
+        const num = parseFloat(val)
+        if (!isNaN(num)) {
+          if (index !== undefined) {
+            // 失焦时把 model 更新为格式化后的字符串（如 '12.3000'）
+            this.form.items[index][field] = num.toFixed(precise)
+          } else {
+            this.form[field] = num.toFixed(precise)
+          }
+        }
+      }
+    },
+    displayPrice(field, index) {
+      if (index !== undefined) {
+        return this.form.items[index][field]
+      } else {
+        return this.form[field]
       }
     }
   }
