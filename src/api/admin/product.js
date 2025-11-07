@@ -44,3 +44,21 @@ export function delProduct(data) {
   })
 }
 
+// 修改产品状态
+export function changeStatus(e) {
+  const data = {
+    id: e.id,
+    status: e.status
+  }
+  return request({
+    url: '/api/v1/product/status',
+    method: 'put',
+    data: data
+  }).then(response => {
+    if (response.code !== 200) {
+      // 抛出错误，让 Promise 变成 reject
+      return Promise.reject(new Error(response.msg || '操作失败'))
+    }
+    return response
+  })
+}

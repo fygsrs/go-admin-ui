@@ -1,6 +1,6 @@
 <template>
   <div class="rank">
-    <h4 class="title">{{ title }}</h4>
+    <!--    <h4 class="title">{{ title }}</h4>-->
     <ul class="list">
       <li v-for="(item, index) in list" :key="index">
         <span :class="index < 3 ? 'active' : null">{{ index + 1 }}</span>
@@ -29,9 +29,9 @@ export default {
 
 <style lang="scss" scoped>
   .rank {
-    padding: 0 32px 32px 72px;
+    padding: 0 32px 32px 0px;
     .list {
-      margin: 25px 0 0;
+      margin: 0px 0 0;
       padding: 0;
       list-style: none;
       li {

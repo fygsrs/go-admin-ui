@@ -288,8 +288,20 @@
 // Drawer 抽屉增加滚动条
 .el-drawer {
   overflow-y: scroll;
-  
+
 }
 .delete-popconfirm{
 margin-left: 10px;
 }
+
+
+
+ /* ===== 修复 Element UI 表格斑马纹及 hover 行为 ===== */
+ .el-table--striped .el-table__body tr.el-table__row--striped td {
+   background-color: #e5e5e5 !important;
+ }
+
+ .el-table--striped .el-table__body tr.el-table__row--striped:hover td {
+   background-color: #e5e5e5 !important;
+ }
+

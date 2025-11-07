@@ -108,6 +108,7 @@
               v-loading="loading"
               :data="userList"
               border
+              stripe
               @selection-change="handleSelectionChange"
               @sort-change="handleSortChang"
             >

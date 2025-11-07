@@ -2,7 +2,7 @@
   <BasicLayout>
     <template #wrapper>
       <el-card class="box-card">
-        <el-form ref="queryForm" :model="queryParams" :inline="true" label-width="68px">
+        <el-form ref="queryForm" :model="queryParams" :inline="true" label-width="88px">
           <el-form-item label="品名/规格" prop="productName">
             <el-input
               v-model="queryParams.productName"
@@ -66,6 +66,17 @@
         <el-table v-loading="loading" :data="productList" @selection-change="handleSelectionChange" @sort-change="handleSortChange">
           <el-table-column type="selection" width="55" align="center" />
           <el-table-column
+            label="创建时间"
+            align="center"
+            prop="createdAt"
+            sortable="custom"
+            :default-sort="{ prop: 'createdAt', order: 'desc' }"
+          >
+            <template slot-scope="scope">
+              <span>{{ parseTime(scope.row.createdAt) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column
             label="编号"
             align="center"
             prop="id"
@@ -89,15 +100,14 @@
             prop="remark"
             :show-overflow-tooltip="true"
           />
-          <el-table-column
-            label="创建时间"
-            align="center"
-            prop="createdAt"
-            width="155px"
-            sortable="custom"
-          >
+          <el-table-column label="状态" sortable="custom" align="center">
             <template slot-scope="scope">
-              <span>{{ parseTime(scope.row.createdAt) }}</span>
+              <el-switch
+                v-model="scope.row.status"
+                active-value="2"
+                inactive-value="1"
+                @change="handleStatusChange(scope.row)"
+              />
             </template>
           </el-table-column>
           <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
@@ -162,6 +172,16 @@
                 placeholder="备注"
               />
             </el-form-item>
+            <el-form-item label="状态" prop="status">
+              <el-radio-group v-model="form.status">
+                <el-radio
+                  v-for="dict in statusOptions"
+                  :key="dict.value"
+                  :label="dict.value"
+                >{{ dict.label }}
+                </el-radio>
+              </el-radio-group>
+            </el-form-item>
           </el-form>
           <div slot="footer" class="dialog-footer">
             <el-button type="primary" @click="submitForm">确 定</el-button>
@@ -174,7 +194,7 @@
 </template>
 
 <script>
-import { addProduct, delProduct, getProduct, listProduct, updateProduct } from '@/api/admin/product'
+import { addProduct, delProduct, getProduct, listProduct, updateProduct, changeStatus } from '@/api/admin/product'
 
 export default {
   name: 'Product',
@@ -199,6 +219,7 @@ export default {
       // 类型数据字典
       typeOptions: [],
       productList: [],
+      statusOptions: [],
 
       // 关系表类型
 
@@ -207,7 +228,8 @@ export default {
         pageIndex: 1,
         pageSize: 10,
         productName: undefined,
-        remark: undefined
+        remark: undefined,
+        createdAtOrder: 'desc'
 
       },
       // 表单参数
@@ -221,6 +243,9 @@ export default {
   },
   created() {
     this.getList()
+    this.getDicts('sys_normal_disable').then(response => {
+      this.statusOptions = response.data
+    })
   },
   methods: {
     /** 查询参数列表 */
@@ -241,7 +266,7 @@ export default {
     // 表单重置
     reset() {
       this.form = {
-
+        status: '2',
         id: undefined,
         productName: undefined,
         price: undefined,
@@ -266,6 +291,7 @@ export default {
     resetQuery() {
       this.dateRange = []
       this.resetForm('queryForm')
+      this.queryParams['createdAtOrder'] = 'desc'
       this.handleQuery()
     },
     /** 新增按钮操作 */
@@ -325,7 +351,7 @@ export default {
     handleDelete(row) {
       var Ids = (row.id && [row.id]) || this.ids
 
-      this.$confirm('是否确认删除编号为"' + Ids + '"的数据项?', '警告', {
+      this.$confirm('是否确认删除单号为"' + Ids + '"的数据项?', '警告', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
@@ -404,6 +430,33 @@ export default {
       } else {
         return this.form[field]
       }
+    },
+    // 产品状态修改
+    handleStatusChange(row) {
+      const isDisabling = row.status !== '2' // 当前不是启用状态，说明要停用
+      const action = isDisabling ? '停用' : '启用'
+      const name = row.productName
+
+      let message = `确认要${action}产品 “${name}” 吗？`
+      if (isDisabling) {
+        message += '停用后，该产品将不会出现在下拉列表中。'
+      }
+
+      this.$confirm(message, '操作确认', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      })
+        .then(() => {
+          return changeStatus(row)
+        })
+        .then(() => {
+          this.msgSuccess(`${action}成功`)
+        })
+        .catch(() => {
+          // 恢复状态（注意：这里应确保 row.status 是响应式的）
+          row.status = row.status === '2' ? '1' : '2'
+        })
     }
   }
 }

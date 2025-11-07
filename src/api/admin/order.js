@@ -52,3 +52,30 @@ export function delOrder(data) {
   })
 }
 
+// 导出订单
+export function exportOrder(ids) {
+  return request({
+    url: '/api/v1/order/exportExcel',
+    method: 'post',
+    data: { ids },
+    responseType: 'blob'
+  })
+}
+
+// 开单额统计
+export function getOrderStat(data) {
+  return request({
+    url: '/api/v1/order/stat',
+    method: 'post',
+    data: data
+  })
+}
+
+// 客户开单额统计
+export function getOrderCustomerStat(data) {
+  return request({
+    url: '/api/v1/order/customerStat',
+    method: 'post',
+    data: data
+  })
+}

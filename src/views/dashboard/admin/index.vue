@@ -58,86 +58,149 @@
         </chart-card>
       </el-col>
     </el-row>
-
-    <el-card :bordered="false" :body-style="{padding: '0'}">
+    <el-card :bordered="false" :body-style="{ padding: '0' }">
       <div class="salesCard">
-        <el-tabs>
-          <el-tab-pane label="销售额">
-            <el-row>
-              <el-col :xl="16" :lg="12" :md="12" :sm="24" :xs="24">
-                <bar :list="barData" title="销售额排行" />
-              </el-col>
-              <el-col :xl="8" :lg="12" :md="12" :sm="24" :xs="24">
-                <rank-list title="门店销售排行榜" :list="rankList" />
-              </el-col>
-            </el-row>
-          </el-tab-pane>
-          <el-tab-pane label="访问量">
-            <el-row>
-              <el-col :xl="16" :lg="12" :md="12" :sm="24" :xs="24">
-                <bar :list="barData2" title="销售额趋势" />
-              </el-col>
-              <el-col :xl="8" :lg="12" :md="12" :sm="24" :xs="24">
-                <rank-list title="门店销售排行榜" :list="rankList" />
-              </el-col>
-            </el-row>
-          </el-tab-pane>
+        <!-- 切换日/月/年 -->
+        <el-tabs v-model="activeTab" @tab-click="handleTabChange">
+          <el-tab-pane label="日开单额" name="1" />
+          <el-tab-pane label="月开单额" name="2" />
+          <el-tab-pane label="年开单额" name="3" />
         </el-tabs>
+
+        <el-row>
+          <!-- 主柱状图 -->
+          <el-col :xl="16" :lg="12" :md="12" :sm="24" :xs="24">
+            <bar
+              :list="mainChartData"
+              :title="tabTitles[activeTab]"
+              :vertical="true"
+              @bar-click="handleBarClick"
+            />
+          </el-col>
+          <el-col :xl="8" :lg="12" :md="12" :sm="24" :xs="24">
+            <h4 v-if="rankTitle" class="rank-title">{{ rankTitle }}</h4>
+            <rank-list :list="customerData" class="rank-col" />
+          </el-col>
+        </el-row>
+
+        <!-- 客户明细横向柱状图（仅当有选中时间时显示） -->
+        <!--        <el-row v-if="selectedTime" style="margin-top: 24px;">-->
+        <!--          <el-col :span="24">-->
+        <!--            <h4 style="padding-left: 16px; margin-bottom: 12px;">-->
+        <!--              {{ selectedTimeLabel }} 客户开单明细-->
+        <!--            </h4>-->
+        <!--            <bar-->
+        <!--              :list="customerData"-->
+        <!--              title=""-->
+        <!--              :vertical="true"-->
+        <!--            />-->
+        <!--          </el-col>-->
+        <!--        </el-row>-->
       </div>
     </el-card>
-
   </div>
 </template>
 
 <script>
-import ChartCard from '@/components/ChartCard'
-import Trend from '@/components/Trend'
-import MiniArea from '@/components/MiniArea'
-import MiniBar from '@/components/MiniBar'
-import MiniProgress from '@/components/MiniProgress'
+import { getOrderStat, getOrderCustomerStat } from '@/api/admin/order'
+import Bar from '@/components/Bar2.vue'
 import RankList from '@/components/RankList/index'
-import Bar from '@/components/Bar.vue'
-
-const barData = []
-const barData2 = []
-for (let i = 0; i < 12; i += 1) {
-  barData.push({
-    x: `${i + 1}月`,
-    y: Math.floor(Math.random() * 1000) + 200
-  })
-  barData2.push({
-    x: `${i + 1}月`,
-    y: Math.floor(Math.random() * 1000) + 200
-  })
-}
-
-const rankList = []
-for (let i = 0; i < 7; i++) {
-  rankList.push({
-    name: '白鹭岛 ' + (i + 1) + ' 号店',
-    total: 1234.56 - i * 100
-  })
-}
+import MiniArea from '@/components/MiniArea/index.vue'
+import Trend from '@/components/Trend/index.vue'
+import MiniProgress from '@/components/MiniProgress/index.vue'
+import MiniBar from '@/components/MiniBar/index.vue'
+import ChartCard from '@/components/ChartCard/index.vue'
 
 export default {
   name: 'DashboardAdmin',
   components: {
-    ChartCard,
-    Trend,
-    MiniArea,
-    MiniBar,
-    MiniProgress,
+    ChartCard, MiniBar, MiniProgress, Trend, MiniArea,
     RankList,
     Bar
   },
   data() {
     return {
-      barData,
-      barData2,
-      rankList
+      activeTab: '1', // 默认日
+      tabTitles: {
+        '1': '日开单额',
+        '2': '月开单额',
+        '3': '年开单额'
+      },
+      mainChartData: [],
+      customerData: [],
+      selectedTime: null, // 如 "20251107"
+      selectedTimeLabel: '',
+      rankTitle: ''
     }
   },
+  async mounted() {
+    await this.loadMainChart()
+  },
   methods: {
+    // 切换 Tab 时重新加载主图表
+    async handleTabChange(tab) {
+      this.selectedTime = null
+      this.customerData = []
+      await this.loadMainChart()
+    },
+    getLimit(type) {
+      if (type === 1) {
+        return 31
+      } else if (type === 2) {
+        return 12
+      } else if (type === 3) {
+        return 10
+      }
+      return 10
+    },
+
+    // 加载日/月/年总览数据
+    async loadMainChart() {
+      try {
+        const res = await getOrderStat({
+          type: parseInt(this.activeTab),
+          limit: this.getLimit(parseInt(this.activeTab))
+        })
+        if (res.code === 200) {
+          // 转换后端数据格式为 Bar 组件需要的 { x, y }
+          this.mainChartData = res.data.map(item => ({
+            x: item.time,
+            y: item.amount
+          }))
+        }
+      } catch (error) {
+        console.error('加载统计失败', error)
+        this.$message.error('加载数据失败')
+      }
+    },
+
+    // 点击主柱状图某一项
+    async handleBarClick(item) {
+      const timeStr = item.x // 如 "2025", "202511", "20251107"
+
+      // 根据 type 补全时间格式（后端要求）
+
+      this.selectedTime = timeStr
+      this.rankTitle = '客户交易额排行榜（' + timeStr + '）'
+
+      // 加载客户明细
+      try {
+        const res = await getOrderCustomerStat({
+          type: parseInt(this.activeTab),
+          time: timeStr
+        })
+        if (res.code === 200) {
+          this.customerData = res.data.map(item => ({
+            name: item.customerName,
+            total: item.totalAmount
+          }))
+        }
+      } catch (error) {
+        console.error('加载客户明细失败', error)
+        this.$message.error('加载客户明细失败')
+        this.customerData = []
+      }
+    }
   }
 }
 </script>
@@ -172,5 +235,11 @@ export default {
   .chart-wrapper {
     padding: 8px;
   }
+}
+
+.rank-col {
+  height: 380px;
+  overflow-y: auto;
+  padding-right: 8px; /* 可选：避免滚动条遮挡内容 */
 }
 </style>

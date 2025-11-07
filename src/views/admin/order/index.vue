@@ -2,36 +2,53 @@
   <BasicLayout>
     <template #wrapper>
       <el-card class="box-card">
-        <el-form ref="queryForm" :model="queryParams" :inline="true" label-width="68px">
-          <el-form-item label="产品" prop="productId">
-            <el-select
-              v-model="queryParams.productId"
-              placeholder="请选择"
+        <el-form ref="queryForm" :model="queryParams" :inline="true" label-width="88px">
+          <el-form-item label="查询单号:" prop="id">
+            <el-input
+              v-model="queryParams.id"
+              placeholder="请输入单号"
               clearable
-              filterable
               size="small"
-            >
-              <el-option
-                v-for="dict in productIdOptions"
-                :key="dict.key"
-                :label="dict.value"
-                :value="dict.key"
-              />
-            </el-select>
+            />
           </el-form-item>
-          <el-form-item label="客户" prop="customerId">
+          <el-form-item label="查询日期:">
+            <el-date-picker
+              v-model="dateRange"
+              type="daterange"
+              range-separator="至"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
+              value-format="yyyy-MM-dd"
+              :picker-options="pickerOptions"
+            />
+          </el-form-item>
+          <el-form-item label="查询客户" prop="customerId">
             <el-select
               v-model="queryParams.customerId"
-              placeholder="请选择"
+              placeholder="请选择或输入客户名称"
               clearable
               filterable
+              remote
+              reserve-keyword
+              :remote-method="handleCustomerSearch"
+              :loading="customerLoading"
               size="small"
+              @visible-change="handleCustomerDropdownVisible"
             >
               <el-option
-                v-for="dict in customerIdOptions"
-                :key="dict.key"
-                :label="dict.value"
-                :value="dict.key"
+                v-for="item in customerOptions"
+                :key="item.key"
+                :label="item.value"
+                :value="item.key"
+              />
+              <div v-if="customerHasMore && customerOptions.length > 0" style="text-align: center; padding: 6px 0;">
+                <el-button type="text" size="mini" @click="loadMoreCustomers">加载更多</el-button>
+              </div>
+              <el-option
+                v-if="!customerLoading && customerOptions.length === 0"
+                disabled
+                value=""
+                label="无匹配客户"
               />
             </el-select>
           </el-form-item>
@@ -66,6 +83,17 @@
           </el-col>
           <el-col :span="1.5">
             <el-button
+              type="warning"
+              icon="el-icon-upload"
+              size="mini"
+              :loading="downloadLoading"
+              :disabled="multiple"
+              @click="handleExport"
+            > {{ downloadLoading ? '导出中...' : '导出 Excel' }}
+            </el-button>
+          </el-col>
+          <el-col :span="1.5">
+            <el-button
               v-permisaction="['admin:order:remove']"
               type="danger"
               icon="el-icon-delete"
@@ -80,15 +108,25 @@
         <el-table
           v-loading="loading"
           :data="orderList"
+          stripe
+          border
+          :default-sort="{ prop: 'createdAt', order: 'desc' }"
           @selection-change="handleSelectionChange"
           @sort-change="handleSortChange"
         >
+          <!-- 展开列 -->
+          <el-table-column type="expand">
+            <template slot-scope="props">
+              <el-table :data="props.row.items" style="width: 100%;   background-color: #e5e5e5 " :show-header="true" class="expand-table-wrapper" border>
+                <el-table-column label="品名/规格" prop="productId" :formatter="productIdFormat" align="center" />
+                <el-table-column label="单价(元/个)" prop="singlePrice" align="center" />
+                <el-table-column label="数量(个)" prop="productNum" align="center" />
+                <el-table-column label="金额(元)" prop="price" align="center" />
+                <el-table-column label="备注" prop="remark" align="center" />
+              </el-table>
+            </template>
+          </el-table-column>
           <el-table-column type="selection" width="55" align="center" />
-          <el-table-column label="客户" align="center" prop="customerId" :formatter="customerIdFormat" width="120" />
-          <el-table-column label="本期总额(元)" align="center" prop="totalAmount" />
-          <el-table-column label="上期欠款(元)" align="center" prop="lastDebt" />
-          <el-table-column label="已付款(元)" align="center" prop="paidAmount" />
-          <el-table-column label="累计欠款(元)" align="center" prop="debt" />
           <el-table-column
             label="创建时间"
             align="center"
@@ -100,6 +138,12 @@
               <span>{{ parseTime(scope.row.createdAt) }}</span>
             </template>
           </el-table-column>
+          <el-table-column label="单号" align="center" prop="id" />
+          <el-table-column label="客户" align="center" prop="customerName" width="120" />
+          <el-table-column label="本期总额(元)" align="center" prop="totalAmount" />
+          <el-table-column label="上期欠款(元)" align="center" prop="lastDebt" />
+          <el-table-column label="已付款(元)" align="center" prop="paidAmount" />
+          <el-table-column label="累计欠款(元)" align="center" prop="debt" />
           <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
             <template slot-scope="scope">
               <el-button
@@ -117,7 +161,8 @@
                 @confirm="handleDelete(scope.row)"
               >
                 <el-button
-                  v-permisaction="['admin:order:remove']"
+                  slot="reference"
+                  v-permisaction="['admin:product:remove']"
                   size="mini"
                   type="text"
                   icon="el-icon-delete"
@@ -144,16 +189,30 @@
                 <el-form-item label="客户" prop="customerId">
                   <el-select
                     v-model="form.customerId"
-                    placeholder="请选择"
+                    placeholder="请选择或输入客户名称"
                     clearable
                     filterable
+                    remote
+                    reserve-keyword
+                    :remote-method="handleDialogCustomerSearch"
+                    :loading="dialogCustomerLoading"
+                    @visible-change="handleDialogCustomerDropdownVisible"
                     @change="handleCustomerSelect(form.customerId)"
                   >
                     <el-option
-                      v-for="dict in customerIdOptions"
-                      :key="dict.key"
-                      :label="dict.value"
-                      :value="dict.key"
+                      v-for="item in dialogCustomerOptions"
+                      :key="item.key"
+                      :label="item.value"
+                      :value="item.key"
+                    />
+                    <div v-if="dialogCustomerHasMore && dialogCustomerOptions.length > 0" style="text-align: center; padding: 6px 0;">
+                      <el-button type="text" size="mini" @click="loadMoreDialogCustomers">加载更多</el-button>
+                    </div>
+                    <el-option
+                      v-if="!dialogCustomerLoading && dialogCustomerOptions.length === 0"
+                      disabled
+                      value=""
+                      label="无匹配客户"
                     />
                   </el-select>
                 </el-form-item>
@@ -161,7 +220,7 @@
             </el-row>
             <!-- 明细表格 -->
             <el-form-item label="订单明细" required>
-              <el-table :data="form.items" style="width: 100%">
+              <el-table :data="form.items" style="width: 120%">
                 <el-table-column label="品名/规格" width="220">
                   <template slot-scope="scope">
                     <el-select
@@ -181,7 +240,7 @@
                   </template>
                 </el-table-column>
 
-                <el-table-column label="单价(元/个)" width="200">
+                <el-table-column label="单价(元/个)" width="150">
                   <template slot-scope="scope">
                     <el-input
                       placeholder="0.0000"
@@ -192,7 +251,7 @@
                   </template>
                 </el-table-column>
 
-                <el-table-column label="数量(个)" width="200">
+                <el-table-column label="数量(个)" width="180">
                   <template slot-scope="scope">
                     <el-input-number
                       v-model="scope.row.productNum"
@@ -205,7 +264,7 @@
                   </template>
                 </el-table-column>
 
-                <el-table-column label="金额(元)" width="200">
+                <el-table-column label="金额(元)" width="100">
                   <template slot-scope="scope">
                     <el-input
                       placeholder="0.0000"
@@ -216,7 +275,7 @@
                   </template>
                 </el-table-column>
 
-                <el-table-column label="备注" width="200">
+                <el-table-column label="备注" width="300">
                   <template slot-scope="scope">
                     <el-input
                       v-model="scope.row.remark"
@@ -293,7 +352,7 @@
 </template>
 
 <script>
-import { addOrder, delOrder, getLastRecord, getOrder, listOrder, updateOrder } from '@/api/admin/order'
+import { addOrder, delOrder, getLastRecord, getOrder, listOrder, updateOrder, exportOrder } from '@/api/admin/order'
 import { listProduct } from '@/api/admin/product'
 import { listCustomer } from '@/api/admin/customer'
 import Decimal from 'decimal.js'
@@ -311,14 +370,83 @@ export default {
       title: '',
       open: false,
       isEdit: false,
+      downloadLoading: false,
       orderList: [],
       productIdOptions: [],
       customerIdOptions: [],
+      dateRange: [],
       queryParams: {
         pageIndex: 1,
         pageSize: 10,
         productId: undefined,
-        customerId: undefined
+        customerId: undefined,
+        createdAtOrder: 'desc'
+      },
+      // 客户下拉 - 查询页
+      customerOptions: [],
+      customerLoading: false,
+      customerPage: 1,
+      customerPageSize: 20,
+      customerTotal: 0,
+      customerName: '',
+      customerHasMore: false,
+
+      // 客户下拉 - 对话框内
+      dialogCustomerOptions: [],
+      dialogCustomerLoading: false,
+      dialogCustomerPage: 1,
+      dialogCustomerPageSize: 20,
+      dialogCustomerTotal: 0,
+      dialogCustomerName: '',
+      dialogCustomerHasMore: false,
+      pickerOptions: {
+        shortcuts: [
+          {
+            text: '当日',
+            onClick(picker) {
+              const date = new Date()
+              picker.$emit('pick', [date, date])
+            }
+          },
+          {
+            text: '最近一天',
+            onClick(picker) {
+              const end = new Date()
+              const start = new Date()
+              start.setTime(start.getTime() - 3600 * 1000 * 24 * 1)
+              picker.$emit('pick', [start, end])
+            }
+          },
+          {
+            text: '最近一周',
+            onClick(picker) {
+              const end = new Date()
+              const start = new Date()
+              start.setTime(start.getTime() - 3600 * 1000 * 24 * 7)
+              picker.$emit('pick', [start, end])
+            }
+          },
+          {
+            text: '最近一个月',
+            onClick(picker) {
+              const end = new Date()
+              const start = new Date()
+              start.setTime(start.getTime() - 3600 * 1000 * 24 * 30)
+              picker.$emit('pick', [start, end])
+            }
+          },
+          {
+            text: '最近一年',
+            onClick(picker) {
+              const end = new Date()
+              const start = new Date()
+              start.setFullYear(start.getFullYear() - 1)
+              // 可选：确保是完整的一年（考虑闰年）
+              // 如果今天是 2025-02-29，去年可能是 2024-02-29（合法）
+              picker.$emit('pick', [start, end])
+            }
+          }
+        ]
       },
       form: {
         id: undefined,
@@ -354,10 +482,9 @@ export default {
     }
   },
   created() {
-    console.log('✅ 正在加载我写的 index.vue！')
     this.getList()
     this.getProductItems()
-    this.getCustomerItems()
+    // this.getCustomerItems()
   },
   methods: {
     getList() {
@@ -399,12 +526,12 @@ export default {
       return this.selectItemsLabel(this.customerIdOptions, row.customerId)
     },
     getProductItems() {
-      this.getItems(listProduct, undefined).then(res => {
+      this.getItems(listProduct, { status: '2', pageSize: 1000 }).then(res => {
         this.productIdOptions = this.setItems(res, 'id', 'productName', ['price'])
       })
     },
     getCustomerItems() {
-      this.getItems(listCustomer, undefined).then(res => {
+      this.getItems(listCustomer, { status: '2' }).then(res => {
         this.customerIdOptions = this.setItems(res, 'customerId', 'customerName')
       })
     },
@@ -415,6 +542,7 @@ export default {
     resetQuery() {
       this.dateRange = []
       this.resetForm('queryForm')
+      this.queryParams['createdAtOrder'] = 'desc'
       this.handleQuery()
     },
     handleAdd() {
@@ -463,6 +591,7 @@ export default {
             remark: item.remark
           }))
         }
+        this.ensureCustomerInDialogOptions(data.customerId, data.customerName)
         this.open = true
         this.title = '修改订单'
         this.isEdit = true
@@ -653,13 +782,184 @@ export default {
       } else {
         return this.form[field]
       }
+    },
+    handleExport(row) {
+      const ids = (row.id && [row.id]) || this.ids
+      if (!ids) {
+        this.$message.warning('请选中要导出的记录')
+        return
+      }
+      const msg = ids.length === 1
+        ? `编号为 "${ids[0]}" 的数据项`
+        : `${ids.length} 条选中记录`
+      this.$confirm(`是否确认导出 ${msg}?`, '警告', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      })
+        .then(() => {
+          // 用户点击了“确定”
+          this.downloadLoading = true
+          return exportOrder(ids)
+        })
+        .then(response => {
+          // 接口请求成功
+          const blob = new Blob([response.data], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          })
+
+          let fileName = '参数设置.xlsx'
+          const contentDisposition = response.headers['content-disposition']
+          if (contentDisposition) {
+            const match = contentDisposition.match(/filename\*?=['"]?(?:UTF-\d['"]*)?([^'"]*)['"]?/i)
+            if (match && match[1]) {
+              fileName = decodeURIComponent(match[1])
+            }
+          }
+          // 下载文件
+          if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+            // IE
+            window.navigator.msSaveOrOpenBlob(blob, fileName)
+          } else {
+            // 其他浏览器
+            const url = window.URL.createObjectURL(blob)
+            const link = document.createElement('a')
+            link.href = url
+            link.download = fileName
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+            window.URL.revokeObjectURL(url)
+          }
+        })
+        .catch(error => {
+          if (error && error.message !== 'cancel') {
+            this.$message.error('导出失败，请稍后重试')
+            console.error('导出错误:', error)
+          }
+        })
+        .finally(() => {
+          this.downloadLoading = false
+        })
+    },
+    // ========== 查询区域客户下拉 ==========
+    handleCustomerDropdownVisible(visible) {
+      if (visible) {
+        this.customerPage = 1
+        this.customerName = ''
+        this.fetchCustomers({ customerName: '', page: 1 })
+      } else {
+        // 可选：清空临时数据（但会丢失已加载项，一般不清）
+      }
+    },
+    handleCustomerSearch(query) {
+      this.customerName = query.trim()
+      this.customerPage = 1
+      this.fetchCustomers({ customerName: this.customerName, page: 1 })
+    },
+    fetchCustomers({ customerName, page }) {
+      this.customerLoading = true
+      listCustomer({
+        status: '2',
+        customerName,
+        pageIndex: page,
+        pageSize: this.customerPageSize
+      }).then(res => {
+        const list = this.setItems(res || [], 'customerId', 'customerName')
+        this.customerTotal = res.data.count || 0
+        this.customerHasMore = list.length + (page - 1) * this.customerPageSize < this.customerTotal
+
+        if (page === 1) {
+          this.customerOptions = list
+        } else {
+          this.customerOptions = [...this.customerOptions, ...list]
+        }
+      }).finally(() => {
+        this.customerLoading = false
+      })
+    },
+    loadMoreCustomers() {
+      this.customerPage += 1
+      this.fetchCustomers({ customerName: this.customerName, page: this.customerPage })
+    },
+
+    // ========== 对话框内客户下拉 ==========
+    handleDialogCustomerDropdownVisible(visible) {
+      if (visible) {
+        this.dialogCustomerPage = 1
+        this.dialogCustomerName = ''
+        this.fetchDialogCustomers({ customerName: '', page: 1 })
+      }
+    },
+    handleDialogCustomerSearch(query) {
+      this.dialogCustomerName = query.trim()
+      this.dialogCustomerPage = 1
+      this.fetchDialogCustomers({ customerName: this.dialogCustomerName, page: 1 })
+    },
+    fetchDialogCustomers({ customerName, page }) {
+      this.dialogCustomerLoading = true
+      listCustomer({
+        status: '2',
+        customerName,
+        pageIndex: page,
+        pageSize: this.dialogCustomerPageSize
+      }).then(res => {
+        const list = this.setItems(res || [], 'customerId', 'customerName')
+        this.dialogCustomerTotal = res.data.count || 0
+        this.dialogCustomerHasMore = list.length + (page - 1) * this.dialogCustomerPageSize < this.dialogCustomerTotal
+
+        if (page === 1) {
+          this.dialogCustomerOptions = list
+        } else {
+          this.dialogCustomerOptions = [...this.dialogCustomerOptions, ...list]
+        }
+      }).finally(() => {
+        this.dialogCustomerLoading = false
+      })
+    },
+    loadMoreDialogCustomers() {
+      this.dialogCustomerPage += 1
+      this.fetchDialogCustomers({ keyword: this.dialogCustomerName, page: this.dialogCustomerPage })
+    },
+    ensureCustomerInDialogOptions(customerId, customerName) {
+      // 检查是否已存在
+      const exists = this.dialogCustomerOptions.some(opt => opt.key === customerId)
+      if (!exists) {
+        // 插入到顶部或末尾（建议顶部，方便看到）
+        this.dialogCustomerOptions.unshift({
+          key: customerId,
+          value: customerName || `客户ID: ${customerId}`
+        })
+      }
     }
   }
 }
 </script>
 
 <style scoped>
-.delete-popconfirm ::v-deep .el-popconfirm__action {
-  text-align: center;
+/* 表头和单元格：确保有下边框 */
+::v-deep .expand-table-wrapper .el-table__header th,
+::v-deep .expand-table-wrapper .el-table__body td {
+  border-bottom: 3px solid #e5e5e5 !important;
+  border-right: 3px solid #e5e5e5 !important;
+}
+
+/* 第一列左侧边框（可选） */
+::v-deep .expand-table-wrapper .el-table__header th:first-child,
+::v-deep .expand-table-wrapper .el-table__body td:first-child {
+  border-left: 3px solid #e5e5e5 !important;
+}
+
+/* 表格外边框 */
+::v-deep .expand-table-wrapper .el-table {
+  //border: 3px solid #e5e5e5 !important;
+  border-top: none !important; /* 避免和表头重复 */
+}
+
+/* 表头背景 */
+::v-deep .expand-table-wrapper .el-table__header th {
+  background-color: #8cc5ff !important;
+  color: #333 !important;
+  font-weight: bold !important;
 }
 </style>

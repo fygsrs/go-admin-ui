@@ -44,6 +44,10 @@ service.interceptors.response.use(
    * You can also judge the status by HTTP Status Code
    */
   response => {
+    // 👇 新增：如果是文件下载，直接返回 response
+    if (response.config.responseType === 'blob') {
+      return response
+    }
     const code = response.data.code
     if (code === 401) {
       store.dispatch('user/resetToken')

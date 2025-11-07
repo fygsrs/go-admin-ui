@@ -2,7 +2,7 @@
   <BasicLayout>
     <template #wrapper>
       <el-card class="box-card">
-        <el-form ref="queryForm" :model="queryParams" :inline="true" label-width="68px">
+        <el-form ref="queryForm" :model="queryParams" :inline="true" label-width="118px">
           <el-form-item label="客户名" prop="customerName">
             <el-input
               v-model="queryParams.customerName"
@@ -12,10 +12,10 @@
               @keyup.enter.native="handleQuery"
             />
           </el-form-item>
-          <el-form-item label="联系方式" prop="phone">
+          <el-form-item label="客户信息详情" prop="phone">
             <el-input
               v-model="queryParams.phone"
-              placeholder="请输入联系方式"
+              placeholder="请输入客户信息详情"
               clearable
               size="small"
               @keyup.enter.native="handleQuery"
@@ -63,8 +63,18 @@
           </el-col>
         </el-row>
 
-        <el-table v-loading="loading" :data="customerList" @selection-change="handleSelectionChange" @sort-change="handleSortChange">
+        <el-table v-loading="loading" :data="customerList" :default-sort="{ prop: 'createdAt', order: 'desc' }" @selection-change="handleSelectionChange" @sort-change="handleSortChange">
           <el-table-column type="selection" width="55" align="center" />
+          <el-table-column
+            label="创建时间"
+            align="center"
+            prop="createdAt"
+            sortable="custom"
+          >
+            <template slot-scope="scope">
+              <span>{{ parseTime(scope.row.createdAt) }}</span>
+            </template>
+          </el-table-column>
           <el-table-column
             label="客户名"
             align="center"
@@ -72,7 +82,7 @@
             :show-overflow-tooltip="true"
           />
           <el-table-column
-            label="联系方式"
+            label="客户信息详情"
             align="center"
             prop="phone"
             :show-overflow-tooltip="true"
@@ -83,7 +93,7 @@
             prop="remark"
             :show-overflow-tooltip="true"
           />
-          <el-table-column label="状态" width="80" sortable="custom">
+          <el-table-column label="状态" sortable="custom" align="center">
             <template slot-scope="scope">
               <el-switch
                 v-model="scope.row.status"
@@ -91,17 +101,6 @@
                 inactive-value="1"
                 @change="handleStatusChange(scope.row)"
               />
-            </template>
-          </el-table-column>
-          <el-table-column
-            label="创建时间"
-            align="center"
-            prop="createdAt"
-            width="155px"
-            sortable="custom"
-          >
-            <template slot-scope="scope">
-              <span>{{ parseTime(scope.row.createdAt) }}</span>
             </template>
           </el-table-column>
           <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
@@ -152,10 +151,10 @@
                 placeholder="客户名"
               />
             </el-form-item>
-            <el-form-item label="联系方式" prop="phone">
+            <el-form-item label="客户信息详情" prop="phone">
               <el-input
                 v-model="form.phone"
-                placeholder="联系方式"
+                placeholder="客户信息详情"
               />
             </el-form-item>
             <el-form-item label="备注" prop="remark">
@@ -232,7 +231,8 @@ export default {
         customerName: undefined,
         phone: undefined,
         remark: undefined,
-        status: undefined
+        status: undefined,
+        createdAtOrder: 'desc'
 
       },
       // 表单参数
@@ -292,6 +292,7 @@ export default {
     resetQuery() {
       this.dateRange = []
       this.resetForm('queryForm')
+      this.queryParams['createdAtOrder'] = 'desc'
       this.handleQuery()
     },
     /** 新增按钮操作 */
@@ -371,18 +372,30 @@ export default {
     },
     // 客户状态修改
     handleStatusChange(row) {
-      const text = row.status === '2' ? '启用' : '停用'
-      this.$confirm('确认要"' + text + '""' + row.customerName + '"用户吗?', '警告', {
+      const isDisabling = row.status !== '2' // 当前不是启用状态，说明要停用
+      const action = isDisabling ? '停用' : '启用'
+      const customerName = row.customerName
+
+      let message = `确认要${action}客户 “${customerName}” 吗？`
+      if (isDisabling) {
+        message += '停用后，该客户将不会出现在下拉列表中。'
+      }
+
+      this.$confirm(message, '操作确认', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
-      }).then(function() {
-        return changeCustomerStatus(row)
-      }).then(() => {
-        this.msgSuccess(text + '成功')
-      }).catch(function() {
-        row.status = row.status === '2' ? '1' : '2'
       })
+        .then(() => {
+          return changeCustomerStatus(row)
+        })
+        .then(() => {
+          this.msgSuccess(`${action}成功`)
+        })
+        .catch(() => {
+          // 恢复状态（注意：这里应确保 row.status 是响应式的）
+          row.status = row.status === '2' ? '1' : '2'
+        })
     },
     /** 排序回调函数 */
     handleSortChange(column, prop, order) {
