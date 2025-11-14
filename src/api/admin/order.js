@@ -79,3 +79,12 @@ export function getOrderCustomerStat(data) {
     data: data
   })
 }
+
+// 开单统计
+export function getStatTable(data) {
+  return request({
+    url: '/api/v1/order/statTable',
+    method: 'post',
+    data: data
+  })
+}

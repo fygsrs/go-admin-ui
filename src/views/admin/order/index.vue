@@ -18,7 +18,7 @@
               range-separator="至"
               start-placeholder="开始日期"
               end-placeholder="结束日期"
-              value-format="yyyy-MM-dd"
+              value-format="yyyy-MM-dd HH:mm:ss"
               :picker-options="pickerOptions"
             />
           </el-form-item>
@@ -83,13 +83,14 @@
           </el-col>
           <el-col :span="1.5">
             <el-button
+              v-permisaction="['admin:order:export']"
               type="warning"
               icon="el-icon-upload"
               size="mini"
               :loading="downloadLoading"
               :disabled="multiple"
               @click="handleExport"
-            > {{ downloadLoading ? '导出中...' : '导出 Excel' }}
+            > {{ downloadLoading ? '导出中...' : '导出单据' }}
             </el-button>
           </el-col>
           <el-col :span="1.5">
@@ -108,27 +109,15 @@
         <el-table
           v-loading="loading"
           :data="orderList"
-          stripe
+          :span-method="objectSpanMethod"
           border
           :default-sort="{ prop: 'createdAt', order: 'desc' }"
           @selection-change="handleSelectionChange"
           @sort-change="handleSortChange"
         >
-          <!-- 展开列 -->
-          <el-table-column type="expand">
-            <template slot-scope="props">
-              <el-table :data="props.row.items" style="width: 100%;   background-color: #e5e5e5 " :show-header="true" class="expand-table-wrapper" border>
-                <el-table-column label="品名/规格" prop="productId" :formatter="productIdFormat" align="center" />
-                <el-table-column label="单价(元/个)" prop="singlePrice" align="center" />
-                <el-table-column label="数量(个)" prop="productNum" align="center" />
-                <el-table-column label="金额(元)" prop="price" align="center" />
-                <el-table-column label="备注" prop="remark" align="center" />
-              </el-table>
-            </template>
-          </el-table-column>
-          <el-table-column type="selection" width="55" align="center" />
+          <el-table-column type="selection" width="55" align="center" prop="selection" />
           <el-table-column
-            label="创建时间"
+            label="开单时间"
             align="center"
             prop="createdAt"
             width="155px"
@@ -139,12 +128,17 @@
             </template>
           </el-table-column>
           <el-table-column label="单号" align="center" prop="id" />
-          <el-table-column label="客户" align="center" prop="customerName" width="120" />
+          <el-table-column label="客户" align="center" prop="customerName" />
+          <el-table-column label="品名/规格" prop="productName" align="center" />
+          <el-table-column label="单价(元/个)" prop="singlePrice" align="center" />
+          <el-table-column label="数量(个)" prop="productNum" align="center" />
+          <el-table-column label="金额(元)" prop="price" align="center" />
+          <el-table-column label="备注" prop="remark" align="center" />
           <el-table-column label="本期总额(元)" align="center" prop="totalAmount" />
           <el-table-column label="上期欠款(元)" align="center" prop="lastDebt" />
           <el-table-column label="已付款(元)" align="center" prop="paidAmount" />
           <el-table-column label="累计欠款(元)" align="center" prop="debt" />
-          <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
+          <el-table-column label="操作" align="center" prop="operation" class-name="small-padding fixed-width">
             <template slot-scope="scope">
               <el-button
                 v-permisaction="['admin:order:edit']"
@@ -240,7 +234,7 @@
                   </template>
                 </el-table-column>
 
-                <el-table-column label="单价(元/个)" width="150">
+                <el-table-column label="单价(元/个)" width="120">
                   <template slot-scope="scope">
                     <el-input
                       placeholder="0.0000"
@@ -251,7 +245,7 @@
                   </template>
                 </el-table-column>
 
-                <el-table-column label="数量(个)" width="180">
+                <el-table-column label="数量(个)" width="160">
                   <template slot-scope="scope">
                     <el-input-number
                       v-model="scope.row.productNum"
@@ -264,7 +258,7 @@
                   </template>
                 </el-table-column>
 
-                <el-table-column label="金额(元)" width="100">
+                <el-table-column label="金额(元)" width="150">
                   <template slot-scope="scope">
                     <el-input
                       placeholder="0.0000"
@@ -404,8 +398,12 @@ export default {
           {
             text: '当日',
             onClick(picker) {
-              const date = new Date()
-              picker.$emit('pick', [date, date])
+              const end = new Date()
+              const start = new Date()
+              start.setHours(0, 0, 0, 0)
+              // 结束时间设为当天 23:59:59.999
+              end.setHours(23, 59, 59, 999)
+              picker.$emit('pick', [start, end])
             }
           },
           {
@@ -414,6 +412,9 @@ export default {
               const end = new Date()
               const start = new Date()
               start.setTime(start.getTime() - 3600 * 1000 * 24 * 1)
+              start.setHours(0, 0, 0, 0)
+              // 结束时间设为当天 23:59:59.999
+              end.setHours(23, 59, 59, 999)
               picker.$emit('pick', [start, end])
             }
           },
@@ -423,6 +424,9 @@ export default {
               const end = new Date()
               const start = new Date()
               start.setTime(start.getTime() - 3600 * 1000 * 24 * 7)
+              start.setHours(0, 0, 0, 0)
+              // 结束时间设为当天 23:59:59.999
+              end.setHours(23, 59, 59, 999)
               picker.$emit('pick', [start, end])
             }
           },
@@ -432,6 +436,9 @@ export default {
               const end = new Date()
               const start = new Date()
               start.setTime(start.getTime() - 3600 * 1000 * 24 * 30)
+              start.setHours(0, 0, 0, 0)
+              // 结束时间设为当天 23:59:59.999
+              end.setHours(23, 59, 59, 999)
               picker.$emit('pick', [start, end])
             }
           },
@@ -441,6 +448,9 @@ export default {
               const end = new Date()
               const start = new Date()
               start.setFullYear(start.getFullYear() - 1)
+              start.setHours(0, 0, 0, 0)
+              // 结束时间设为当天 23:59:59.999
+              end.setHours(23, 59, 59, 999)
               // 可选：确保是完整的一年（考虑闰年）
               // 如果今天是 2025-02-29，去年可能是 2024-02-29（合法）
               picker.$emit('pick', [start, end])
@@ -470,7 +480,20 @@ export default {
         lastDebt: [{ required: true, message: '上期欠款不能为空', trigger: 'blur' }],
         paidAmount: [{ required: true, message: '已付款不能为空', trigger: 'blur' }],
         totalAmount: [{ required: true, message: '本期交易总额不能为空', trigger: 'blur' }]
-      }
+      },
+      mergeColumns: [
+        'selection',
+        'id',
+        'customerName',
+        'totalAmount',
+        'lastDebt',
+        'paidAmount',
+        'debt',
+        'createdAt',
+        'operation'
+      ],
+      spanArr: [], // 存储每行的合并行数
+      pos: 0
     }
   },
   computed: {
@@ -479,6 +502,16 @@ export default {
       const total = this.form.totalAmount ? new Decimal(this.form.totalAmount) : new Decimal(0)
       const paid = this.form.paidAmount ? new Decimal(this.form.paidAmount) : new Decimal(0)
       return last.plus(total).minus(paid).toDecimalPlaces(2, Decimal.ROUND_DOWN).toFixed(2).toString()
+    }
+  },
+  watch: {
+    orderList: {
+      handler(newVal) {
+        if (newVal && newVal.length) {
+          this.getSpanArr(newVal)
+        }
+      },
+      immediate: true
     }
   },
   created() {
@@ -622,7 +655,7 @@ export default {
       })
     },
     handleDelete(row) {
-      const ids = (row.id && [row.id]) || this.ids
+      const ids = (row.id && [row.id]) || [...new Set(this.ids)]
       this.$confirm(`是否确认删除编号为"${ids}"的数据项?`, '警告', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
@@ -708,15 +741,12 @@ export default {
       }
     },
     handleCustomerSelect(customerId) {
-      const customer = this.customerIdOptions.find(c => c.key === customerId)
-      if (customer) {
-        getLastRecord(customerId).then(response => {
-          const data = response.data
-          if (data && data.debt) {
-            this.form.lastDebt = data.debt
-          }
-        })
-      }
+      getLastRecord(customerId).then(response => {
+        const data = response.data
+        if (data && data.debt) {
+          this.form.lastDebt = data.debt
+        }
+      })
     },
     updateItemAmount(index) {
       const item = this.form.items[index]
@@ -784,7 +814,7 @@ export default {
       }
     },
     handleExport(row) {
-      const ids = (row.id && [row.id]) || this.ids
+      const ids = (row.id && [row.id]) || [...new Set(this.ids)]
       if (!ids) {
         this.$message.warning('请选中要导出的记录')
         return
@@ -808,7 +838,7 @@ export default {
             type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
           })
 
-          let fileName = '参数设置.xlsx'
+          let fileName = '导出单.xlsx'
           const contentDisposition = response.headers['content-disposition']
           if (contentDisposition) {
             const match = contentDisposition.match(/filename\*?=['"]?(?:UTF-\d['"]*)?([^'"]*)['"]?/i)
@@ -931,6 +961,45 @@ export default {
           value: customerName || `客户ID: ${customerId}`
         })
       }
+    },
+    // 初始化合并数组（每次数据变化时调用）
+    getSpanArr(data) {
+      this.spanArr = []
+      this.pos = 0
+      for (let i = 0; i < data.length; i++) {
+        if (i === 0) {
+          this.spanArr.push(1)
+          this.pos = 0
+        } else {
+          // 判断当前行的 orderId 是否和上一行相同
+          if (data[i].id === data[i - 1].id) {
+            this.spanArr[this.pos] += 1
+            this.spanArr.push(0)
+          } else {
+            this.spanArr.push(1)
+            this.pos = i
+          }
+        }
+      }
+    },
+
+    // Element UI 的 span-method 回调
+    objectSpanMethod({ row, column, rowIndex, columnIndex }) {
+      const prop = column.property
+      // 只对指定列做合并
+      if (this.mergeColumns.includes(prop)) {
+        const rowspan = this.spanArr[rowIndex]
+        const colspan = rowspan > 0 ? 1 : 0
+        return {
+          rowspan,
+          colspan
+        }
+      }
+      // 其他列（如单价、数量等）不合并
+      return {
+        rowspan: 1,
+        colspan: 1
+      }
     }
   }
 }
@@ -961,5 +1030,18 @@ export default {
   background-color: #8cc5ff !important;
   color: #333 !important;
   font-weight: bold !important;
+}
+
+/* 注意：scoped 可能导致样式不生效，必要时使用 ::v-deep 或全局样式 */
+::v-deep .el-table--border,
+::v-deep .el-table--border th,
+::v-deep .el-table--border td {
+  border-color: #d1d1d1 !important; /* 改为黑色 */
+  border-width: 1px !important;  /* 确保是 1px 或更粗 */
+}
+
+/* 如果你想加粗外边框 */
+::v-deep .el-table--border {
+  border: 1px solid #d1d1d1	 !important;
 }
 </style>

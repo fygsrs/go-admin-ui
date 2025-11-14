@@ -1,63 +1,63 @@
 <template>
   <div class="dashboard-editor-container">
-    <el-row :gutter="12">
-      <el-col :sm="24" :xs="24" :md="6" :xl="6" :lg="6" :style="{ marginBottom: '12px' }">
-        <chart-card title="总销售额" total="￥126,560">
-          <el-tooltip slot="action" class="item" effect="dark" content="指标说明" placement="top-start">
-            <i class="el-icon-warning-outline" />
-          </el-tooltip>
-          <div>
-            <trend flag="top" style="margin-right: 16px;" rate="12">
-              <span slot="term">周同比</span>
-            </trend>
-            <trend flag="bottom" rate="11">
-              <span slot="term">日同比</span>
-            </trend>
-          </div>
-          <template slot="footer">日均销售额<span>￥ 234.56</span></template>
-        </chart-card>
-      </el-col>
-      <el-col :sm="24" :xs="24" :md="6" :xl="6" :lg="6" :style="{ marginBottom: '12px' }">
-        <chart-card title="访问量" :total="8846">
-          <el-tooltip slot="action" class="item" effect="dark" content="指标说明" placement="top-start">
-            <i class="el-icon-warning-outline" />
-          </el-tooltip>
-          <div>
-            <mini-area />
-          </div>
-          <template slot="footer">日访问量<span> {{ '1234' }}</span></template>
-        </chart-card>
-      </el-col>
-      <el-col :sm="24" :xs="24" :md="6" :xl="6" :lg="6" :style="{ marginBottom: '12px' }">
-        <chart-card title="支付笔数" :total="6560">
-          <el-tooltip slot="action" class="item" effect="dark" content="指标说明" placement="top-start">
-            <i class="el-icon-warning-outline" />
-          </el-tooltip>
-          <div>
-            <mini-bar />
-          </div>
-          <template slot="footer">转化率 <span>60%</span></template>
-        </chart-card>
-      </el-col>
-      <el-col :sm="24" :xs="24" :md="6" :xl="6" :lg="6" :style="{ marginBottom: '12px' }">
-        <chart-card title="运营活动效果" total="78%">
-          <el-tooltip slot="action" class="item" effect="dark" content="指标说明" placement="top-start">
-            <i class="el-icon-warning-outline" />
-          </el-tooltip>
-          <div>
-            <mini-progress color="rgb(19, 194, 194)" :target="80" :percentage="78" height="8px" />
-          </div>
-          <template slot="footer">
-            <trend flag="top" style="margin-right: 16px;" rate="12">
-              <span slot="term">同周比</span>
-            </trend>
-            <trend flag="bottom" rate="80">
-              <span slot="term">日环比</span>
-            </trend>
-          </template>
-        </chart-card>
-      </el-col>
-    </el-row>
+    <!--    <el-row :gutter="12">-->
+    <!--      <el-col :sm="24" :xs="24" :md="6" :xl="6" :lg="6" :style="{ marginBottom: '12px' }">-->
+    <!--        <chart-card title="总销售额" total="￥126,560">-->
+    <!--          <el-tooltip slot="action" class="item" effect="dark" content="指标说明" placement="top-start">-->
+    <!--            <i class="el-icon-warning-outline" />-->
+    <!--          </el-tooltip>-->
+    <!--          <div>-->
+    <!--            <trend flag="top" style="margin-right: 16px;" rate="12">-->
+    <!--              <span slot="term">周同比</span>-->
+    <!--            </trend>-->
+    <!--            <trend flag="bottom" rate="11">-->
+    <!--              <span slot="term">日同比</span>-->
+    <!--            </trend>-->
+    <!--          </div>-->
+    <!--          <template slot="footer">日均销售额<span>￥ 234.56</span></template>-->
+    <!--        </chart-card>-->
+    <!--      </el-col>-->
+    <!--      <el-col :sm="24" :xs="24" :md="6" :xl="6" :lg="6" :style="{ marginBottom: '12px' }">-->
+    <!--        <chart-card title="访问量" :total="8846">-->
+    <!--          <el-tooltip slot="action" class="item" effect="dark" content="指标说明" placement="top-start">-->
+    <!--            <i class="el-icon-warning-outline" />-->
+    <!--          </el-tooltip>-->
+    <!--          <div>-->
+    <!--            <mini-area />-->
+    <!--          </div>-->
+    <!--          <template slot="footer">日访问量<span> {{ '1234' }}</span></template>-->
+    <!--        </chart-card>-->
+    <!--      </el-col>-->
+    <!--      <el-col :sm="24" :xs="24" :md="6" :xl="6" :lg="6" :style="{ marginBottom: '12px' }">-->
+    <!--        <chart-card title="支付笔数" :total="6560">-->
+    <!--          <el-tooltip slot="action" class="item" effect="dark" content="指标说明" placement="top-start">-->
+    <!--            <i class="el-icon-warning-outline" />-->
+    <!--          </el-tooltip>-->
+    <!--          <div>-->
+    <!--            <mini-bar />-->
+    <!--          </div>-->
+    <!--          <template slot="footer">转化率 <span>60%</span></template>-->
+    <!--        </chart-card>-->
+    <!--      </el-col>-->
+    <!--      <el-col :sm="24" :xs="24" :md="6" :xl="6" :lg="6" :style="{ marginBottom: '12px' }">-->
+    <!--        <chart-card title="运营活动效果" total="78%">-->
+    <!--          <el-tooltip slot="action" class="item" effect="dark" content="指标说明" placement="top-start">-->
+    <!--            <i class="el-icon-warning-outline" />-->
+    <!--          </el-tooltip>-->
+    <!--          <div>-->
+    <!--            <mini-progress color="rgb(19, 194, 194)" :target="80" :percentage="78" height="8px" />-->
+    <!--          </div>-->
+    <!--          <template slot="footer">-->
+    <!--            <trend flag="top" style="margin-right: 16px;" rate="12">-->
+    <!--              <span slot="term">同周比</span>-->
+    <!--            </trend>-->
+    <!--            <trend flag="bottom" rate="80">-->
+    <!--              <span slot="term">日环比</span>-->
+    <!--            </trend>-->
+    <!--          </template>-->
+    <!--        </chart-card>-->
+    <!--      </el-col>-->
+    <!--    </el-row>-->
     <el-card :bordered="false" :body-style="{ padding: '0' }">
       <div class="salesCard">
         <!-- 切换日/月/年 -->
@@ -105,16 +105,10 @@
 import { getOrderStat, getOrderCustomerStat } from '@/api/admin/order'
 import Bar from '@/components/Bar2.vue'
 import RankList from '@/components/RankList/index'
-import MiniArea from '@/components/MiniArea/index.vue'
-import Trend from '@/components/Trend/index.vue'
-import MiniProgress from '@/components/MiniProgress/index.vue'
-import MiniBar from '@/components/MiniBar/index.vue'
-import ChartCard from '@/components/ChartCard/index.vue'
 
 export default {
   name: 'DashboardAdmin',
   components: {
-    ChartCard, MiniBar, MiniProgress, Trend, MiniArea,
     RankList,
     Bar
   },

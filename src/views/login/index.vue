@@ -154,9 +154,7 @@
       <div class="s-bottom-layer-content">
 
         <div class="lh">
-          <a class="text-color" href="https://beian.miit.gov.cn" target="_blank">
-            沪ICP备XXXXXXXXX号-1
-          </a>
+          <a class="text-color" href="https://beian.miit.gov.cn" target="_blank" />
         </div>
         <div class="open-content-info">
           <div class="tip-hover-panel" style="top: -18px; right: -12px">
@@ -167,9 +165,7 @@
                     class="text-color"
                     href="https://beian.miit.gov.cn"
                     target="_blank"
-                  >
-                    沪ICP备XXXXXXXXX号-1
-                  </a>
+                  />
                 </div>
               </div>
             </div>
@@ -195,7 +191,7 @@ export default {
       refreshParticles: true,
       loginForm: {
         username: 'admin',
-        password: '123456',
+        password: '',
         rememberMe: false,
         code: '',
         uuid: ''
