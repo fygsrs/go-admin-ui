@@ -130,8 +130,8 @@
           <el-table-column label="单号" align="center" prop="id" />
           <el-table-column label="客户" align="center" prop="customerName" />
           <el-table-column label="品名/规格" prop="productName" align="center" />
-          <el-table-column label="单价(元/个)" prop="singlePrice" align="center" />
           <el-table-column label="数量(个)" prop="productNum" align="center" />
+          <el-table-column label="单价(元/个)" prop="singlePrice" align="center" />
           <el-table-column label="金额(元)" prop="price" align="center" />
           <el-table-column label="备注" prop="remark" align="center" />
           <el-table-column label="本期总额(元)" align="center" prop="totalAmount" />
@@ -234,17 +234,6 @@
                   </template>
                 </el-table-column>
 
-                <el-table-column label="单价(元/个)" width="120">
-                  <template slot-scope="scope">
-                    <el-input
-                      placeholder="0.0000"
-                      :value="displayPrice('singlePrice',scope.$index)"
-                      @input="handleDecimalInputItem('singlePrice', scope.$index, 6, 4, $event)"
-                      @blur="formatFieldOnBlur('singlePrice', 4,scope.$index)"
-                    />
-                  </template>
-                </el-table-column>
-
                 <el-table-column label="数量(个)" width="160">
                   <template slot-scope="scope">
                     <el-input-number
@@ -254,6 +243,17 @@
                       controls-position="right"
                       style="width: 100%"
                       @change="updateItemAmount(scope.$index)"
+                    />
+                  </template>
+                </el-table-column>
+
+                <el-table-column label="单价(元/个)" width="120">
+                  <template slot-scope="scope">
+                    <el-input
+                      placeholder="0.0000"
+                      :value="displayPrice('singlePrice',scope.$index)"
+                      @input="handleDecimalInputItem('singlePrice', scope.$index, 6, 4, $event)"
+                      @blur="formatFieldOnBlur('singlePrice', 4,scope.$index)"
                     />
                   </template>
                 </el-table-column>
@@ -463,7 +463,7 @@ export default {
         customerId: undefined,
         lastDebt: '',
         debt: '',
-        paidAmount: '',
+        paidAmount: '0',
         totalAmount: '',
         items: [
           {
@@ -537,7 +537,7 @@ export default {
         id: undefined,
         customerId: undefined,
         lastDebt: '',
-        paidAmount: '',
+        paidAmount: '0',
         totalAmount: '',
         remark: '',
         items: [
@@ -559,7 +559,7 @@ export default {
       return this.selectItemsLabel(this.customerIdOptions, row.customerId)
     },
     getProductItems() {
-      this.getItems(listProduct, { status: '2', pageSize: 1000 }).then(res => {
+      this.getItems(listProduct, { status: '2', pageSize: 9999 }).then(res => {
         this.productIdOptions = this.setItems(res, 'id', 'productName', ['price'])
       })
     },
