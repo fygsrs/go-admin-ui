@@ -93,6 +93,12 @@
             prop="remark"
             :show-overflow-tooltip="true"
           />
+          <el-table-column
+            label="累计欠款"
+            align="center"
+            prop="debt"
+            :show-overflow-tooltip="true"
+          />
           <el-table-column label="状态" sortable="custom" align="center">
             <template slot-scope="scope">
               <el-switch
@@ -232,7 +238,8 @@ export default {
         phone: undefined,
         remark: undefined,
         status: undefined,
-        createdAtOrder: 'desc'
+        createdAtOrder: 'desc',
+        debt: undefined
 
       },
       // 表单参数
@@ -271,7 +278,8 @@ export default {
         customerName: undefined,
         phone: undefined,
         remark: undefined,
-        status: '2'
+        status: '2',
+        debt: undefined
       }
       this.resetForm('form')
     },
